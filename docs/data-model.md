@@ -7,7 +7,7 @@ Represents a locally managed customer profile.
 
 - id: UUID
 - keycloakSubject: String (unique)
-- email: String
+- email: String (unique)
 - firstName: String
 - lastName: String
 - companyName: String (optional)
@@ -20,8 +20,9 @@ Represents a locally managed customer profile.
 - id: UUID
 - name: String
 - description: String
-- volume: Decimal
-- dailyPrice: Decimal
+- volumeM3: Decimal (NUMERIC(8,2), greater than 0)
+- dailyPriceCents: Long (BIGINT, non-negative integer minor units)
+- currencyCode: String (ISO 4217 alphabetic code)
 - active: Boolean
 
 ## 3. Container
@@ -40,10 +41,12 @@ Represents one physical container.
 - containerTypeId: UUID
 - deliveryDate: LocalDate
 - pickupDate: LocalDate
+- quantity: Int (positive)
 - deliveryAddress: Address
 - status: BookingStatus
-- dailyPriceSnapshot: Decimal
-- deliveryFeeSnapshot: Decimal
+- dailyPriceCentsSnapshot: Long (BIGINT, non-negative integer minor units)
+- deliveryFeeCentsSnapshot: Long (BIGINT, non-negative integer minor units)
+- currencyCode: String (ISO 4217 alphabetic code)
 - createdAt: Instant
 - updatedAt: Instant
 - version: Long
@@ -64,9 +67,10 @@ to a booking.
 - id: UUID
 - bookingId: UUID
 - invoiceNumber: String (unique)
-- netAmount: Decimal
-- taxAmount: Decimal
-- grossAmount: Decimal
+- netAmountCents: Long (BIGINT, non-negative integer minor units)
+- taxAmountCents: Long (BIGINT, non-negative integer minor units)
+- grossAmountCents: Long (BIGINT, non-negative integer minor units)
+- currencyCode: String (ISO 4217 alphabetic code)
 - status: DRAFT | SENT | PAID | VOID
 - createdAt: Instant
 
@@ -75,10 +79,10 @@ to a booking.
 - id: UUID
 - invoiceId: UUID
 - description: String
-- quantity: Decimal
-- unitPrice: Decimal
-- taxRate: Decimal
-- total: Decimal
+- quantity: Decimal (NUMERIC(12,3), greater than 0)
+- unitPriceCents: Long (BIGINT, non-negative integer minor units)
+- taxRate: Decimal (NUMERIC(5,4), fraction from 0 to 1)
+- totalCents: Long (BIGINT, non-negative integer minor units)
 
 ## 8. Relationships
 
@@ -100,3 +104,14 @@ to a booking.
 - Optimistic locking where needed.
 - No overlapping active assignments
   for the same physical container.
+- Booking intervals are half-open: delivery date is included and pickup date
+  is excluded. Thus, an assignment ending on a pickup date does not overlap
+  another starting on that same date.
+- Active assignments (releasedAt is null and booking is not cancelled) are
+  protected from overlapping booking intervals by a PostgreSQL trigger.
+- Customer email and Keycloak subject are unique. Each booking has at most
+  one invoice.
+- Monetary values use integer minor units, with the ISO currency code stored
+  alongside the amount. The API uses `*Cents` fields for those values.
+- Invoice-line quantities use three decimal places; tax rates are fractional
+  values in the inclusive range 0 to 1 with four decimal places.

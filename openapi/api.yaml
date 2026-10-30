@@ -1066,7 +1066,8 @@ components:
           format: double
           exclusiveMinimum: true
           minimum: 0
-          description: Container volume in cubic meters.
+          multipleOf: 0.01
+          description: Container volume in cubic meters, stored to two decimal places.
         dailyPriceCents:
           type: integer
           format: int64
@@ -1098,7 +1099,8 @@ components:
           format: double
           exclusiveMinimum: true
           minimum: 0
-          description: Container volume in cubic meters.
+          multipleOf: 0.01
+          description: Container volume in cubic meters, stored to two decimal places.
         dailyPriceCents:
           type: integer
           format: int64
@@ -1336,6 +1338,8 @@ components:
           format: double
           exclusiveMinimum: true
           minimum: 0
+          multipleOf: 0.001
+          description: Invoice-line quantity, stored to three decimal places.
         unitPriceCents:
           type: integer
           format: int64
@@ -1345,7 +1349,9 @@ components:
           type: number
           format: double
           minimum: 0
-          description: Rate recorded on the invoice; applicable tax rules are not defined by this API.
+          maximum: 1
+          multipleOf: 0.0001
+          description: Tax rate as a fraction from 0 to 1, stored to four decimal places; tax policy is not defined by this API.
         totalCents:
           type: integer
           format: int64

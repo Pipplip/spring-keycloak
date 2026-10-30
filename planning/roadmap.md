@@ -15,10 +15,10 @@
 - [x] Validate generated code
 
 ## Phase 3: Persistence
-- [ ] Domain entities
-- [ ] JPA repositories
-- [ ] Flyway migrations
-- [ ] Database constraints
+- [x] Domain entities
+- [x] JPA repositories
+- [x] Flyway migrations
+- [x] Database constraints
 
 ## Phase 4: Security
 - [ ] Keycloak integration

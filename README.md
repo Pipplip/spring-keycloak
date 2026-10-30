@@ -129,3 +129,27 @@ Unter Bash verwendest du `./gradlew` mit denselben Gradle-Tasks.
 `frontend/build/generated/openapi/typescript-angular/`. Es wird kein Angular-
 Projekt angelegt; der Client wird bis zur Einrichtung des Frontends strukturell
 validiert.
+
+## Datenbankmigrationen und Persistenztests
+
+Flyway migriert ausschließlich die über `SPRING_DATASOURCE_URL` konfigurierte
+Anwendungsdatenbank. Die Migrationen liegen unter
+`backend/src/main/resources/db/migration/`; Hibernate prüft das Schema mit
+`ddl-auto: validate` und erzeugt oder ändert keine Tabellen. Schemaänderungen
+werden ausschließlich als neue, versionierte Migrationen ergänzt; angewendete
+Migrationen bleiben unverändert.
+
+Starte für lokale Entwicklung zunächst den PostgreSQL-Service wie oben
+beschrieben. Flyway wendet die Migration beim Backend-Start automatisch an.
+Die PostgreSQL-Integrationstests starten eine leere PostgreSQL-17-Testcontainer-
+Datenbank und führen Migrationen und Persistenztests aus:
+
+```powershell
+Set-Location backend
+.\gradlew.bat test
+```
+
+Unter Bash verwende `./gradlew test`. Für einen zusätzlichen Test gegen die
+konfigurierte Compose-Datenbank gilt weiterhin der opt-in Schalter
+`COMPOSE_DATABASE_TEST=true`; diese Tests verwenden die Anwendungsdatenbank,
+nicht die separate Keycloak-Datenbank.
