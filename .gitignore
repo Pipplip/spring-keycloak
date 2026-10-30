@@ -28,3 +28,14 @@ replay_pid*
 
 # IDE
 .idea
+
+# Local development environment
+.env
+.env.*
+!.env.example
+
+# Gradle build output
+backend/.gradle/
+backend/build/
+backend/.kotlin/
+!backend/gradle/wrapper/gradle-wrapper.jar

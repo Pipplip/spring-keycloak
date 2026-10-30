@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: abfallcontainer-service
+  config:
+    import: optional:file:../.env[.properties]
+  datasource:
+    url: "${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:${POSTGRES_PORT:5432}/${POSTGRES_DB:abfallcontainer}}"
+    username: "${SPRING_DATASOURCE_USERNAME:${POSTGRES_USER:abfallcontainer}}"
+    password: "${SPRING_DATASOURCE_PASSWORD:${POSTGRES_PASSWORD:}}"

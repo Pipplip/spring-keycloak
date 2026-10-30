@@ -2,11 +2,11 @@
 # Development Roadmap
 
 ## Phase 1: Project Setup
-- [ ] Gradle project
-- [ ] Spring Boot configuration
-- [ ] PostgreSQL
-- [ ] Keycloak
-- [ ] Docker Compose
+- [x] Gradle project
+- [x] Spring Boot configuration
+- [x] PostgreSQL
+- [x] Keycloak
+- [x] Docker Compose
 
 ## Phase 2: OpenAPI
 - [ ] Generate initial API specification
