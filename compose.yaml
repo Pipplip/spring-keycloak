@@ -24,7 +24,7 @@ services:
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.3.1
-    command: ["start-dev"]
+    command: ["start-dev", "--import-realm"]
     environment:
       KC_DB: postgres
       KC_DB_URL_HOST: postgres
@@ -34,11 +34,28 @@ services:
       KC_HEALTH_ENABLED: "true"
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD in .env}
+    volumes:
+      - ./docker/keycloak/realm:/opt/keycloak/data/import:ro
     ports:
       - "${KEYCLOAK_PORT:-8081}:8080"
     depends_on:
       postgres:
         condition: service_healthy
+
+  keycloak-admin-init:
+    image: quay.io/keycloak/keycloak:26.3.1
+    profiles: ["keycloak-bootstrap"]
+    entrypoint: ["/bin/bash", "/opt/keycloak/bootstrap/create-admin-user.sh"]
+    environment:
+      KEYCLOAK_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD in .env}
+      ABFALLCONTAINER_ADMIN_USERNAME: ${ABFALLCONTAINER_ADMIN_USERNAME:?Set ABFALLCONTAINER_ADMIN_USERNAME in .env}
+      ABFALLCONTAINER_ADMIN_PASSWORD: ${ABFALLCONTAINER_ADMIN_PASSWORD:?Set ABFALLCONTAINER_ADMIN_PASSWORD in .env}
+    volumes:
+      - ./docker/keycloak/bootstrap:/opt/keycloak/bootstrap:ro
+    depends_on:
+      keycloak:
+        condition: service_started
 
 volumes:
   postgres_data:

@@ -6,6 +6,10 @@ import de.pipplip.abfallcontainerservice.application.port.out.ContainerRepositor
 import de.pipplip.abfallcontainerservice.application.port.out.ContainerTypeRepository
 import de.pipplip.abfallcontainerservice.application.port.out.CustomerRepository
 import de.pipplip.abfallcontainerservice.application.port.out.InvoiceRepository
+import de.pipplip.abfallcontainerservice.application.service.BookingNotFoundException
+import de.pipplip.abfallcontainerservice.application.service.BookingOwnershipAuthorizer
+import de.pipplip.abfallcontainerservice.application.service.BookingOwnershipDeniedException
+import de.pipplip.abfallcontainerservice.application.service.CustomerProfileNotFoundException
 import de.pipplip.abfallcontainerservice.domain.model.Address
 import de.pipplip.abfallcontainerservice.domain.model.Booking
 import de.pipplip.abfallcontainerservice.domain.model.BookingStatus
@@ -26,6 +30,10 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.orm.ObjectOptimisticLockingFailureException
+import org.springframework.security.core.authority.SimpleGrantedAuthority
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.oauth2.jwt.Jwt
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.testcontainers.containers.PostgreSQLContainer
@@ -57,6 +65,9 @@ class PersistenceIntegrationTest {
 
     @Autowired
     private lateinit var invoiceRepository: InvoiceRepository
+
+    @Autowired
+    private lateinit var bookingOwnershipAuthorizer: BookingOwnershipAuthorizer
 
     @Autowired
     private lateinit var jdbcTemplate: JdbcTemplate
@@ -108,6 +119,7 @@ class PersistenceIntegrationTest {
             )
 
         assertThat(customerRepository.findById(customer.id)).isEqualTo(customer)
+        assertThat(customerRepository.findByKeycloakSubject(customer.keycloakSubject)).isEqualTo(customer)
         assertThat(containerTypeRepository.findById(type.id)).isEqualTo(type)
         assertThat(containerRepository.findById(container.id)).isEqualTo(container)
         assertThat(bookingRepository.findById(booking.id))
@@ -253,6 +265,55 @@ class PersistenceIntegrationTest {
         assertThatThrownBy {
             bookingRepository.save(initial.copy(status = BookingStatus.CANCELLED))
         }.isInstanceOf(ObjectOptimisticLockingFailureException::class.java)
+    }
+
+    @Test
+    fun `booking ownership boundary allows only the authenticated customer`() {
+        val owner = customerRepository.save(customer())
+        val otherCustomer = customerRepository.save(customer())
+        val type = containerTypeRepository.save(containerType())
+        val booking = bookingRepository.save(booking(owner.id, type.id))
+
+        withAuthenticatedSubject(owner.keycloakSubject) {
+            assertThat(bookingOwnershipAuthorizer.requireOwner(booking.id)).isEqualTo(booking)
+        }
+
+        withAuthenticatedSubject(otherCustomer.keycloakSubject) {
+            assertThatThrownBy { bookingOwnershipAuthorizer.requireOwner(booking.id) }
+                .isInstanceOf(BookingOwnershipDeniedException::class.java)
+        }
+        withAuthenticatedSubject("unknown-subject") {
+            assertThatThrownBy { bookingOwnershipAuthorizer.requireOwner(booking.id) }
+                .isInstanceOf(CustomerProfileNotFoundException::class.java)
+        }
+        withAuthenticatedSubject(owner.keycloakSubject) {
+            assertThatThrownBy { bookingOwnershipAuthorizer.requireOwner(UUID.randomUUID()) }
+                .isInstanceOf(BookingNotFoundException::class.java)
+        }
+    }
+
+    private fun withAuthenticatedSubject(
+        subject: String,
+        block: () -> Unit,
+    ) {
+        val authentication =
+            JwtAuthenticationToken(
+                Jwt.withTokenValue("test-token")
+                    .header("alg", "none")
+                    .subject(subject)
+                    .build(),
+                listOf(SimpleGrantedAuthority("ROLE_USER")),
+            )
+        SecurityContextHolder.setContext(
+            SecurityContextHolder.createEmptyContext().apply {
+                this.authentication = authentication
+            },
+        )
+        try {
+            block()
+        } finally {
+            SecurityContextHolder.clearContext()
+        }
     }
 
     private fun customer(

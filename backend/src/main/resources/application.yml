@@ -13,3 +13,10 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: "${KEYCLOAK_ISSUER_URI:http://localhost:8081/realms/abfallcontainer-realm}"
+          jwk-set-uri: "${KEYCLOAK_JWK_SET_URI:http://localhost:8081/realms/abfallcontainer-realm/protocol/openid-connect/certs}"
+          audience: "${KEYCLOAK_API_AUDIENCE:abfallcontainer-backend}"

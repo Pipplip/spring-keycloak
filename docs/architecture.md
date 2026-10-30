@@ -77,6 +77,21 @@ Backend:
 - Method-level authorization.
 - Customer ownership validation.
 
+Local Keycloak security configuration:
+- Realm: `abfallcontainer-realm`; application realm roles are `USER` and `ADMIN`.
+- The Angular public client is `abfallcontainer-frontend` and uses Authorization
+  Code Flow with PKCE (S256). Its local redirect origin is
+  `http://localhost:4200`.
+- The API audience is `abfallcontainer-backend`. The backend accepts only this
+  audience and maps only the Keycloak realm role claim to USER/ADMIN authorities.
+- The canonical local token issuer is
+  `http://localhost:8081/realms/abfallcontainer-realm`. A backend container may
+  use the internal Keycloak JWKS endpoint while retaining this issuer for token
+  validation.
+- Customer ownership is derived from the verified JWT `sub` and the local
+  customer's unique Keycloak subject. Authenticated USER tokens without a local
+  customer profile are denied; profiles are not provisioned automatically.
+
 Frontend:
 - Angular SPA.
 - Public Keycloak client.

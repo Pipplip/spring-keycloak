@@ -35,7 +35,7 @@ Erstelle einmalig die grundlegenden md Dateien (auch mithilfe von Copilot):
 Führe dann diese Schritte aus:
 
 ```Prompt
-Use the prompt plan-feature.prompt.md to create an implementation plan for the first milestone of the roadmap: Project Setup.
+Use the prompt plan-feature.prompt.md to create an implementation plan for the next milestone of the roadmap: Project Setup.
 The implementation plan should consider Gradle, Kotlin, Spring Boot, PostgreSQL, Keycloak, and Docker Compose.
 Do not implement any code yet.
 ```
@@ -72,9 +72,24 @@ Voraussetzungen: JDK 25, Docker mit Docker Compose v2 oder neuer und eine Shell.
 
    PostgreSQL ist unter `localhost:5432` verfügbar; Keycloak unter
    `http://localhost:8081`. Keycloak verwendet eine eigene Datenbank im
-   PostgreSQL-Service. Es wird kein Realm oder Client vorab importiert.
+   PostgreSQL-Service. Beim Start wird der lokale Realm
+   `abfallcontainer-realm` mit den Clients und Rollen `USER` und `ADMIN`
+   importiert.
 
-3. Baue/teste das Backend oder starte den lokalen Spring-Boot-Server:
+3. Optional: Erstelle den lokalen Anwendungsadministrator mit dem separaten
+   Passwort aus `.env`:
+
+   ```powershell
+   docker compose --profile keycloak-bootstrap run --rm keycloak-admin-init
+   ```
+
+   Das erstellt oder aktualisiert den in
+   `ABFALLCONTAINER_ADMIN_USERNAME` angegebenen Benutzer im lokalen Realm und
+   weist ihm die Rolle `ADMIN` zu. Die Keycloak-Master-Admin-Zugangsdaten und
+   das Anwendungsadministrator-Passwort müssen lokal gesetzt sein; sie werden
+   nicht versioniert.
+
+4. Baue/teste das Backend oder starte den lokalen Spring-Boot-Server:
 
    ```powershell
    Set-Location backend
@@ -84,7 +99,15 @@ Voraussetzungen: JDK 25, Docker mit Docker Compose v2 oder neuer und eine Shell.
 
    Unter Bash führe im Backend-Verzeichnis `./gradlew test` bzw.
    `./gradlew bootRun` aus. Die Spring-Konfiguration liest die Datenbankwerte
-   aus der im Repository-Hauptverzeichnis liegenden `.env`.
+   aus der im Repository-Hauptverzeichnis liegenden `.env`. Der Resource Server
+   erwartet den Issuer
+   `http://localhost:8081/realms/abfallcontainer-realm` und die Audience
+   `abfallcontainer-backend`. Diese Werte können mit
+   `KEYCLOAK_ISSUER_URI` und `KEYCLOAK_API_AUDIENCE` überschrieben werden.
+   Für einen Backend-Container bleibt der Issuer gleich; setze
+   `KEYCLOAK_JWK_SET_URI` auf die interne URL
+   `http://keycloak:8080/realms/abfallcontainer-realm/protocol/openid-connect/certs`,
+   damit die JWKS im Compose-Netzwerk erreichbar ist.
 
    Für einen zusätzlichen Verbindungstest gegen die laufende Compose-Datenbank
    setze im Backend-Verzeichnis `COMPOSE_DATABASE_TEST=true` vor dem Testlauf:
@@ -97,7 +120,7 @@ Voraussetzungen: JDK 25, Docker mit Docker Compose v2 oder neuer und eine Shell.
 
    Unter Bash verwendest du `COMPOSE_DATABASE_TEST=true ./gradlew test`.
 
-4. Stoppe die Services, wenn du fertig bist:
+5. Stoppe die Services, wenn du fertig bist:
 
    ```powershell
    docker compose down

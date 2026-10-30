@@ -21,11 +21,11 @@
 - [x] Database constraints
 
 ## Phase 4: Security
-- [ ] Keycloak integration
-- [ ] JWT Resource Server
-- [ ] Role mapping
-- [ ] Customer ownership
-- [ ] Security tests
+- [x] Keycloak integration
+- [x] JWT Resource Server
+- [x] Role mapping
+- [x] Customer ownership
+- [x] Security tests
 
 ## Phase 5: Customer Features
 - [ ] Container types

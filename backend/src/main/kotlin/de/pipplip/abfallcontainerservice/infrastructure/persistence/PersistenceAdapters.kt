@@ -20,7 +20,9 @@ import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
 
-interface CustomerJpaRepository : JpaRepository<CustomerJpaEntity, UUID>
+interface CustomerJpaRepository : JpaRepository<CustomerJpaEntity, UUID> {
+    fun findByKeycloakSubject(keycloakSubject: String): CustomerJpaEntity?
+}
 
 interface ContainerTypeJpaRepository : JpaRepository<ContainerTypeJpaEntity, UUID>
 
@@ -54,6 +56,10 @@ class CustomerPersistenceAdapter(
 
     @Transactional(readOnly = true)
     override fun findById(id: UUID): Customer? = repository.findById(id).orElse(null)?.toDomain()
+
+    @Transactional(readOnly = true)
+    override fun findByKeycloakSubject(keycloakSubject: String): Customer? =
+        repository.findByKeycloakSubject(keycloakSubject)?.toDomain()
 }
 
 @Component

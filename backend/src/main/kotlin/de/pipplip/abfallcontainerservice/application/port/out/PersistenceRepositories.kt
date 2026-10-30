@@ -12,6 +12,8 @@ interface CustomerRepository {
     fun save(customer: Customer): Customer
 
     fun findById(id: UUID): Customer?
+
+    fun findByKeycloakSubject(keycloakSubject: String): Customer?
 }
 
 interface ContainerTypeRepository {
