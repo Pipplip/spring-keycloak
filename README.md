@@ -105,3 +105,27 @@ Voraussetzungen: JDK 25, Docker mit Docker Compose v2 oder neuer und eine Shell.
 
    Die PostgreSQL-Daten bleiben im benannten Volume erhalten. Entferne das
    Volume nur, wenn du dessen lokale Daten ausdrücklich löschen möchtest.
+
+## OpenAPI-Vertrag
+
+`openapi/api.yaml` ist die Source of Truth fuer die API. Die Kotlin/Spring-
+Schnittstellen und der Angular-TypeScript-Client werden generiert; generierte
+Dateien duerfen nicht manuell bearbeitet werden.
+
+Fuehre die folgenden Befehle im Backend-Verzeichnis aus:
+
+```powershell
+.\gradlew.bat openApiValidate
+.\gradlew.bat generateKotlinOpenApi
+.\gradlew.bat generateAngularOpenApi
+.\gradlew.bat validateAngularOpenApiOutput
+.\gradlew.bat test
+```
+
+Unter Bash verwendest du `./gradlew` mit denselben Gradle-Tasks.
+`validateAngularOpenApiOutput` prueft die erwarteten Angular-Services und Modelle;
+`test` kompiliert auch die generierten Kotlin-Schnittstellen. Die Ausgaben liegen unter
+`backend/build/generated/openapi/kotlin-spring/` und
+`frontend/build/generated/openapi/typescript-angular/`. Es wird kein Angular-
+Projekt angelegt; der Client wird bis zur Einrichtung des Frontends strukturell
+validiert.

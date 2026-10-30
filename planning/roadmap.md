@@ -9,10 +9,10 @@
 - [x] Docker Compose
 
 ## Phase 2: OpenAPI
-- [ ] Generate initial API specification
-- [ ] Define endpoints and schemas
-- [ ] Configure OpenAPI Generator
-- [ ] Validate generated code
+- [x] Generate initial API specification
+- [x] Define endpoints and schemas
+- [x] Configure OpenAPI Generator
+- [x] Validate generated code
 
 ## Phase 3: Persistence
 - [ ] Domain entities

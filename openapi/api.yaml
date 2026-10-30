@@ -1,0 +1,1517 @@
+openapi: 3.0.3
+info:
+  title: Abfallcontainer-Service API
+  version: 1.0.0
+  description: |
+    API contract for customer and administrator operations. This contract does
+    not define unresolved cancellation eligibility, invoice timing, tax policy,
+    rental limits, or fees.
+tags:
+  - name: Catalogue
+    description: Public container type catalogue.
+  - name: Availability
+    description: Public availability inquiries.
+  - name: Bookings
+    description: Customer booking operations.
+  - name: Administration
+    description: Administrator operations for customers, bookings, and inventory.
+  - name: Invoices
+    description: Customer invoice retrieval and administrator invoice management.
+paths:
+  /api/v1/container-types:
+    get:
+      tags:
+        - Catalogue
+      operationId: listContainerTypes
+      summary: List active container types
+      description: Public catalogue endpoint. Only active container types are returned.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: A page of active container types.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContainerTypePage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /api/v1/container-types/{containerTypeId}:
+    get:
+      tags:
+        - Catalogue
+      operationId: getContainerType
+      summary: Get an active container type
+      description: Public catalogue endpoint. Inactive container types are not exposed.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/ContainerTypeId'
+      responses:
+        '200':
+          description: The requested active container type.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContainerType'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/availability:
+    get:
+      tags:
+        - Availability
+      operationId: checkAvailability
+      summary: Check container availability
+      description: |
+        Public endpoint. Pickup date must be after delivery date. Availability
+        is based on physical inventory; this contract does not define rental
+        duration limits or pricing rules.
+      security: []
+      parameters:
+        - name: containerTypeId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: deliveryDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: pickupDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: quantity
+          in: query
+          required: true
+          description: Number of containers requested.
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+      responses:
+        '200':
+          description: Availability for the requested period and quantity.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Availability'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/bookings:
+    get:
+      tags:
+        - Bookings
+      operationId: listMyBookings
+      summary: List the authenticated customer's bookings
+      description: Requires the USER role. Results are restricted to the authenticated customer.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: A page of the customer's bookings.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+        - Bookings
+      operationId: createBooking
+      summary: Create a booking
+      description: |
+        Requires the USER role. The authenticated customer is the owner; the
+        request cannot select a customer ID. Pickup date must be after delivery
+        date. The requested quantity is part of the API contract; persistence
+        and allocation behavior are defined by later milestones.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingRequest'
+      responses:
+        '201':
+          description: Booking created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/bookings/{bookingId}:
+    get:
+      tags:
+        - Bookings
+      operationId: getMyBooking
+      summary: Get one of the authenticated customer's bookings
+      description: Requires the USER role and restricts access to the booking owner.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '200':
+          description: The requested booking.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/bookings/{bookingId}/cancellation:
+    post:
+      tags:
+        - Bookings
+      operationId: requestBookingCancellation
+      summary: Request cancellation of a booking
+      description: |
+        Requires the USER role and booking ownership. Cancellation eligibility
+        and any related fee are intentionally not defined by this contract.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '200':
+          description: The booking after processing the cancellation request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/bookings/{bookingId}/invoice:
+    get:
+      tags:
+        - Invoices
+      operationId: getMyBookingInvoice
+      summary: Retrieve the invoice associated with a booking
+      description: Requires the USER role and booking ownership. Invoice timing is not defined by this contract.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '200':
+          description: The invoice associated with the booking.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/container-types:
+    get:
+      tags:
+        - Administration
+      operationId: listAdminContainerTypes
+      summary: List container types for administration
+      description: Requires the ADMIN role. Includes active and inactive container types.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - name: active
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: A page of container types.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContainerTypePage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+        - Administration
+      operationId: createAdminContainerType
+      summary: Create a container type
+      description: Requires the ADMIN role.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContainerTypeRequest'
+      responses:
+        '201':
+          description: Container type created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContainerType'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/admin/container-types/{containerTypeId}:
+    get:
+      tags:
+        - Administration
+      operationId: getAdminContainerType
+      summary: Get a container type for administration
+      description: Requires the ADMIN role. Includes inactive container types.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ContainerTypeId'
+      responses:
+        '200':
+          description: The requested container type.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContainerType'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Administration
+      operationId: updateAdminContainerType
+      summary: Update a container type
+      description: Requires the ADMIN role. Use the active field to deactivate a type.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ContainerTypeId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContainerTypeRequest'
+      responses:
+        '200':
+          description: Container type updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContainerType'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/containers:
+    get:
+      tags:
+        - Administration
+      operationId: listAdminContainers
+      summary: List physical containers
+      description: Requires the ADMIN role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ContainerStatus'
+        - name: containerTypeId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: A page of physical containers.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContainerPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+        - Administration
+      operationId: createAdminContainer
+      summary: Create a physical container
+      description: Requires the ADMIN role.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContainerRequest'
+      responses:
+        '201':
+          description: Physical container created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Container'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/admin/containers/{containerId}:
+    get:
+      tags:
+        - Administration
+      operationId: getAdminContainer
+      summary: Get a physical container
+      description: Requires the ADMIN role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ContainerId'
+      responses:
+        '200':
+          description: The requested physical container.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Container'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Administration
+      operationId: updateAdminContainer
+      summary: Update a physical container
+      description: Requires the ADMIN role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ContainerId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContainerRequest'
+      responses:
+        '200':
+          description: Physical container updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Container'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/customers:
+    get:
+      tags:
+        - Administration
+      operationId: listAdminCustomers
+      summary: List customers
+      description: Requires the ADMIN role. Keycloak subject values are not exposed.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: A page of customer profiles.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/admin/customers/{customerId}:
+    get:
+      tags:
+        - Administration
+      operationId: getAdminCustomer
+      summary: Get a customer profile
+      description: Requires the ADMIN role. Keycloak subject values are not exposed.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CustomerId'
+      responses:
+        '200':
+          description: The requested customer profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Administration
+      operationId: updateAdminCustomer
+      summary: Update a customer profile
+      description: Requires the ADMIN role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CustomerId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+      responses:
+        '200':
+          description: Customer profile updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/bookings:
+    get:
+      tags:
+        - Administration
+      operationId: listAdminBookings
+      summary: List and filter bookings
+      description: Requires the ADMIN role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/BookingStatus'
+        - name: customerId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: containerTypeId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: deliveryFrom
+          in: query
+          required: false
+          description: Include bookings whose delivery date is on or after this date.
+          schema:
+            type: string
+            format: date
+        - name: deliveryTo
+          in: query
+          required: false
+          description: Include bookings whose delivery date is on or before this date.
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: A page of bookings matching the supplied filters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/admin/bookings/{bookingId}:
+    get:
+      tags:
+        - Administration
+      operationId: getAdminBooking
+      summary: Get a booking for administration
+      description: Requires the ADMIN role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '200':
+          description: The requested booking.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/bookings/{bookingId}/status:
+    patch:
+      tags:
+        - Administration
+      operationId: updateAdminBookingStatus
+      summary: Change a booking status
+      description: Requires the ADMIN role. Status transitions must follow the documented business rules.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingStatusRequest'
+      responses:
+        '200':
+          description: Booking status updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/admin/bookings/{bookingId}/container-assignments:
+    get:
+      tags:
+        - Administration
+      operationId: listAdminContainerAssignments
+      summary: List containers assigned to a booking
+      description: Requires the ADMIN role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: A page of assignments associated with the booking.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContainerAssignmentPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags:
+        - Administration
+      operationId: assignAdminContainerToBooking
+      summary: Assign a physical container to a booking
+      description: |
+        Requires the ADMIN role. The assigned container must belong to the
+        booking's container type and must not be assigned to an overlapping
+        booking. Assignment constraints are validated by the later application
+        implementation.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContainerAssignmentRequest'
+      responses:
+        '201':
+          description: Container assigned to the booking.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContainerAssignment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/admin/bookings/{bookingId}/container-assignments/{assignmentId}/release:
+    post:
+      tags:
+        - Administration
+      operationId: releaseAdminContainerAssignment
+      summary: Release a container assignment
+      description: Requires the ADMIN role. The assignment is retained with its release timestamp.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+        - $ref: '#/components/parameters/AssignmentId'
+      responses:
+        '200':
+          description: Assignment released.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContainerAssignment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/admin/invoices:
+    get:
+      tags:
+        - Invoices
+      operationId: listAdminInvoices
+      summary: List invoices
+      description: Requires the ADMIN role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/InvoiceStatus'
+      responses:
+        '200':
+          description: A page of invoices matching the supplied filters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoicePage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/admin/invoices/{invoiceId}:
+    get:
+      tags:
+        - Invoices
+      operationId: getAdminInvoice
+      summary: Get an invoice
+      description: Requires the ADMIN role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/InvoiceId'
+      responses:
+        '200':
+          description: The requested invoice.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/bookings/{bookingId}/invoice:
+    post:
+      tags:
+        - Invoices
+      operationId: createAdminInvoiceForBooking
+      summary: Create an invoice for a booking
+      description: |
+        Requires the ADMIN role. Invoice eligibility, timing, and calculation
+        rules are intentionally deferred and are not defined by this contract.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '201':
+          description: Invoice created for the booking.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/admin/invoices/{invoiceId}/mark-paid:
+    post:
+      tags:
+        - Invoices
+      operationId: markAdminInvoicePaid
+      summary: Mark an invoice as paid
+      description: Requires the ADMIN role. Payment is manually managed.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/InvoiceId'
+      responses:
+        '200':
+          description: Invoice marked as paid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Page:
+      name: page
+      in: query
+      required: false
+      description: Zero-based page index.
+      schema:
+        type: integer
+        format: int32
+        minimum: 0
+        default: 0
+    Size:
+      name: size
+      in: query
+      required: false
+      description: Page size, from 1 to 100.
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 100
+        default: 20
+    ContainerTypeId:
+      name: containerTypeId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ContainerId:
+      name: containerId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CustomerId:
+      name: customerId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    BookingId:
+      name: bookingId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    AssignmentId:
+      name: assignmentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    InvoiceId:
+      name: invoiceId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    BadRequest:
+      description: Request validation failed.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    Unauthorized:
+      description: Authentication is required or the supplied credentials are invalid.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    Forbidden:
+      description: The authenticated caller is not allowed to perform this operation.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    NotFound:
+      description: The requested resource was not found.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    Conflict:
+      description: The operation conflicts with current state or business rules.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+  schemas:
+    Address:
+      type: object
+      required:
+        - street
+        - houseNumber
+        - postalCode
+        - city
+        - countryCode
+      properties:
+        street:
+          type: string
+          minLength: 1
+        houseNumber:
+          type: string
+          minLength: 1
+        postalCode:
+          type: string
+          minLength: 1
+        city:
+          type: string
+          minLength: 1
+        countryCode:
+          type: string
+          pattern: '^[A-Z]{2}$'
+          description: ISO 3166-1 alpha-2 country code.
+    Customer:
+      type: object
+      required:
+        - id
+        - email
+        - firstName
+        - lastName
+        - billingAddress
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        companyName:
+          type: string
+          description: Optional business name.
+        billingAddress:
+          $ref: '#/components/schemas/Address'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CustomerRequest:
+      type: object
+      required:
+        - email
+        - firstName
+        - lastName
+        - billingAddress
+      properties:
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        companyName:
+          type: string
+          description: Optional business name.
+        billingAddress:
+          $ref: '#/components/schemas/Address'
+    ContainerType:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - volumeM3
+        - dailyPriceCents
+        - currencyCode
+        - active
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        volumeM3:
+          type: number
+          format: double
+          exclusiveMinimum: true
+          minimum: 0
+          description: Container volume in cubic meters.
+        dailyPriceCents:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Daily price expressed as an integer number of cents.
+        currencyCode:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          description: ISO 4217 alphabetic currency code; this API does not restrict the currency.
+        active:
+          type: boolean
+    ContainerTypeRequest:
+      type: object
+      required:
+        - name
+        - description
+        - volumeM3
+        - dailyPriceCents
+        - currencyCode
+        - active
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        volumeM3:
+          type: number
+          format: double
+          exclusiveMinimum: true
+          minimum: 0
+          description: Container volume in cubic meters.
+        dailyPriceCents:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Daily price expressed as an integer number of cents.
+        currencyCode:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          description: ISO 4217 alphabetic currency code; this API does not restrict the currency.
+        active:
+          type: boolean
+    ContainerStatus:
+      type: string
+      enum:
+        - AVAILABLE
+        - MAINTENANCE
+        - RETIRED
+    Container:
+      type: object
+      required:
+        - id
+        - inventoryNumber
+        - containerTypeId
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        inventoryNumber:
+          type: string
+        containerTypeId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/ContainerStatus'
+    ContainerRequest:
+      type: object
+      required:
+        - inventoryNumber
+        - containerTypeId
+        - status
+      properties:
+        inventoryNumber:
+          type: string
+          minLength: 1
+        containerTypeId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/ContainerStatus'
+    ContainerAssignment:
+      type: object
+      required:
+        - id
+        - bookingId
+        - containerId
+        - assignedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        bookingId:
+          type: string
+          format: uuid
+        containerId:
+          type: string
+          format: uuid
+        assignedAt:
+          type: string
+          format: date-time
+        releasedAt:
+          type: string
+          format: date-time
+    ContainerAssignmentRequest:
+      type: object
+      required:
+        - containerId
+      properties:
+        containerId:
+          type: string
+          format: uuid
+    Availability:
+      type: object
+      required:
+        - containerTypeId
+        - deliveryDate
+        - pickupDate
+        - quantity
+        - available
+      properties:
+        containerTypeId:
+          type: string
+          format: uuid
+        deliveryDate:
+          type: string
+          format: date
+        pickupDate:
+          type: string
+          format: date
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+        available:
+          type: boolean
+    BookingStatus:
+      type: string
+      enum:
+        - PENDING
+        - CONFIRMED
+        - DELIVERED
+        - COMPLETED
+        - CANCELLED
+    Booking:
+      type: object
+      required:
+        - id
+        - customerId
+        - containerTypeId
+        - quantity
+        - deliveryDate
+        - pickupDate
+        - deliveryAddress
+        - status
+        - dailyPriceCents
+        - deliveryFeeCents
+        - currencyCode
+        - createdAt
+        - updatedAt
+        - version
+      properties:
+        id:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+          description: Owner of the booking; never accepted from customer booking requests.
+        containerTypeId:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+          description: Requested number of containers.
+        deliveryDate:
+          type: string
+          format: date
+        pickupDate:
+          type: string
+          format: date
+        deliveryAddress:
+          $ref: '#/components/schemas/Address'
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+        dailyPriceCents:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Historical daily price in integer cents.
+        deliveryFeeCents:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Historical delivery fee in integer cents.
+        currencyCode:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          description: ISO 4217 alphabetic currency code for the booking amounts.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+    BookingRequest:
+      type: object
+      required:
+        - containerTypeId
+        - quantity
+        - deliveryDate
+        - pickupDate
+        - deliveryAddress
+      properties:
+        containerTypeId:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+        deliveryDate:
+          type: string
+          format: date
+        pickupDate:
+          type: string
+          format: date
+        deliveryAddress:
+          $ref: '#/components/schemas/Address'
+    BookingStatusRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+    InvoiceStatus:
+      type: string
+      enum:
+        - DRAFT
+        - SENT
+        - PAID
+        - VOID
+    InvoiceLine:
+      type: object
+      required:
+        - id
+        - description
+        - quantity
+        - unitPriceCents
+        - taxRate
+        - totalCents
+      properties:
+        id:
+          type: string
+          format: uuid
+        description:
+          type: string
+        quantity:
+          type: number
+          format: double
+          exclusiveMinimum: true
+          minimum: 0
+        unitPriceCents:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Unit price expressed as an integer number of cents.
+        taxRate:
+          type: number
+          format: double
+          minimum: 0
+          description: Rate recorded on the invoice; applicable tax rules are not defined by this API.
+        totalCents:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Line total expressed as an integer number of cents.
+    Invoice:
+      type: object
+      required:
+        - id
+        - bookingId
+        - invoiceNumber
+        - netAmountCents
+        - taxAmountCents
+        - grossAmountCents
+        - currencyCode
+        - status
+        - createdAt
+        - lines
+      properties:
+        id:
+          type: string
+          format: uuid
+        bookingId:
+          type: string
+          format: uuid
+        invoiceNumber:
+          type: string
+        netAmountCents:
+          type: integer
+          format: int64
+          minimum: 0
+        taxAmountCents:
+          type: integer
+          format: int64
+          minimum: 0
+        grossAmountCents:
+          type: integer
+          format: int64
+          minimum: 0
+        currencyCode:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          description: ISO 4217 alphabetic currency code for the invoice amounts.
+        status:
+          $ref: '#/components/schemas/InvoiceStatus'
+        createdAt:
+          type: string
+          format: date-time
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvoiceLine'
+    PageMetadata:
+      type: object
+      required:
+        - page
+        - size
+        - totalElements
+        - totalPages
+      properties:
+        page:
+          type: integer
+          format: int32
+          minimum: 0
+        size:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 100
+        totalElements:
+          type: integer
+          format: int64
+          minimum: 0
+        totalPages:
+          type: integer
+          format: int32
+          minimum: 0
+    ContainerTypePage:
+      type: object
+      required:
+        - items
+        - page
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContainerType'
+        page:
+          $ref: '#/components/schemas/PageMetadata'
+    ContainerPage:
+      type: object
+      required:
+        - items
+        - page
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Container'
+        page:
+          $ref: '#/components/schemas/PageMetadata'
+    ContainerAssignmentPage:
+      type: object
+      required:
+        - items
+        - page
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContainerAssignment'
+        page:
+          $ref: '#/components/schemas/PageMetadata'
+    CustomerPage:
+      type: object
+      required:
+        - items
+        - page
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Customer'
+        page:
+          $ref: '#/components/schemas/PageMetadata'
+    BookingPage:
+      type: object
+      required:
+        - items
+        - page
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Booking'
+        page:
+          $ref: '#/components/schemas/PageMetadata'
+    InvoicePage:
+      type: object
+      required:
+        - items
+        - page
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Invoice'
+        page:
+          $ref: '#/components/schemas/PageMetadata'
+    ProblemDetail:
+      type: object
+      description: RFC 7807 Problem Details response.
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          description: URI reference identifying the problem type.
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+          minimum: 100
+          maximum: 599
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri-reference
