@@ -22,7 +22,6 @@ data class Booking(
     val deliveryAddress: Address,
     val status: BookingStatus,
     val dailyPriceCents: Long,
-    val deliveryFeeCents: Long,
     val currencyCode: String,
     val createdAt: Instant,
     val updatedAt: Instant,

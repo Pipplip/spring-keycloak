@@ -4,8 +4,7 @@ info:
   version: 1.0.0
   description: |
     API contract for customer and administrator operations. This contract does
-    not define unresolved cancellation eligibility, invoice timing, tax policy,
-    rental limits, or fees.
+    not define invoice timing, tax policy, or payment-provider behavior.
 tags:
   - name: Catalogue
     description: Public container type catalogue.
@@ -139,8 +138,9 @@ paths:
       description: |
         Requires the USER role. The authenticated customer is the owner; the
         request cannot select a customer ID. Pickup date must be after delivery
-        date. The requested quantity is part of the API contract; persistence
-        and allocation behavior are defined by later milestones.
+        date. The booking is created with PENDING status and reserves the
+        requested inventory. It becomes CONFIRMED only after payment; payment
+        processing is outside this API.
       security:
         - bearerAuth: []
       requestBody:
@@ -162,6 +162,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
   /api/v1/bookings/{bookingId}:
@@ -195,8 +197,9 @@ paths:
       operationId: requestBookingCancellation
       summary: Request cancellation of a booking
       description: |
-        Requires the USER role and booking ownership. Cancellation eligibility
-        and any related fee are intentionally not defined by this contract.
+        Requires the USER role and booking ownership. PENDING and CONFIRMED
+        bookings can be cancelled without a cancellation fee. Other statuses
+        cannot be cancelled.
       security:
         - bearerAuth: []
       parameters:
@@ -222,7 +225,7 @@ paths:
         - Invoices
       operationId: getMyBookingInvoice
       summary: Retrieve the invoice associated with a booking
-      description: Requires the USER role and booking ownership. Invoice timing is not defined by this contract.
+      description: Requires the USER role and booking ownership. Returns an existing invoice; invoice creation timing is not defined by this contract.
       security:
         - bearerAuth: []
       parameters:
@@ -1226,7 +1229,6 @@ components:
         - deliveryAddress
         - status
         - dailyPriceCents
-        - deliveryFeeCents
         - currencyCode
         - createdAt
         - updatedAt
@@ -1262,11 +1264,6 @@ components:
           format: int64
           minimum: 0
           description: Historical daily price in integer cents.
-        deliveryFeeCents:
-          type: integer
-          format: int64
-          minimum: 0
-          description: Historical delivery fee in integer cents.
         currencyCode:
           type: string
           pattern: '^[A-Z]{3}$'

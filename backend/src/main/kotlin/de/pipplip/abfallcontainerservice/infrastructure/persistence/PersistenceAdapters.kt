@@ -6,6 +6,7 @@ import de.pipplip.abfallcontainerservice.application.port.out.ContainerRepositor
 import de.pipplip.abfallcontainerservice.application.port.out.ContainerTypeRepository
 import de.pipplip.abfallcontainerservice.application.port.out.CustomerRepository
 import de.pipplip.abfallcontainerservice.application.port.out.InvoiceRepository
+import de.pipplip.abfallcontainerservice.application.port.out.PageResult
 import de.pipplip.abfallcontainerservice.domain.model.Address
 import de.pipplip.abfallcontainerservice.domain.model.Booking
 import de.pipplip.abfallcontainerservice.domain.model.Container
@@ -15,24 +16,80 @@ import de.pipplip.abfallcontainerservice.domain.model.Customer
 import de.pipplip.abfallcontainerservice.domain.model.Invoice
 import de.pipplip.abfallcontainerservice.domain.model.InvoiceLine
 import jakarta.persistence.EntityManager
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Sort
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
+
+private const val AVAILABLE_CONTAINER_COUNT_SQL =
+    """
+    SELECT COUNT(*)
+    FROM containers c
+    WHERE c.container_type_id = :containerTypeId
+      AND c.status = 'AVAILABLE'
+      AND NOT EXISTS (
+          SELECT 1
+          FROM container_assignments ca
+          JOIN bookings b ON b.id = ca.booking_id
+          WHERE ca.container_id = c.id
+            AND ca.released_at IS NULL
+            AND b.status <> 'CANCELLED'
+            AND daterange(b.delivery_date, b.pickup_date, '[)')
+                && daterange(:deliveryDate, :pickupDate, '[)')
+      )
+    """
+
+private const val LOCK_AVAILABLE_CONTAINER_IDS_SQL =
+    """
+    SELECT c.id
+    FROM containers c
+    WHERE c.container_type_id = :containerTypeId
+      AND c.status = 'AVAILABLE'
+      AND NOT EXISTS (
+          SELECT 1
+          FROM container_assignments ca
+          JOIN bookings b ON b.id = ca.booking_id
+          WHERE ca.container_id = c.id
+            AND ca.released_at IS NULL
+            AND b.status <> 'CANCELLED'
+            AND daterange(b.delivery_date, b.pickup_date, '[)')
+                && daterange(:deliveryDate, :pickupDate, '[)')
+      )
+    ORDER BY c.id
+    FOR UPDATE OF c SKIP LOCKED
+    LIMIT :limit
+    """
 
 interface CustomerJpaRepository : JpaRepository<CustomerJpaEntity, UUID> {
     fun findByKeycloakSubject(keycloakSubject: String): CustomerJpaEntity?
 }
 
-interface ContainerTypeJpaRepository : JpaRepository<ContainerTypeJpaEntity, UUID>
+interface ContainerTypeJpaRepository : JpaRepository<ContainerTypeJpaEntity, UUID> {
+    fun findByIdAndActiveTrue(id: UUID): ContainerTypeJpaEntity?
+
+    fun findAllByActiveTrue(pageable: org.springframework.data.domain.Pageable):
+        org.springframework.data.domain.Page<ContainerTypeJpaEntity>
+}
 
 interface ContainerJpaRepository : JpaRepository<ContainerJpaEntity, UUID>
 
-interface BookingJpaRepository : JpaRepository<BookingJpaEntity, UUID>
+interface BookingJpaRepository : JpaRepository<BookingJpaEntity, UUID> {
+    @EntityGraph(attributePaths = ["customer", "containerType"])
+    fun findByCustomer_Id(
+        customerId: UUID,
+        pageable: org.springframework.data.domain.Pageable,
+    ): org.springframework.data.domain.Page<BookingJpaEntity>
+}
 
 interface ContainerAssignmentJpaRepository : JpaRepository<ContainerAssignmentJpaEntity, UUID>
 
-interface InvoiceJpaRepository : JpaRepository<InvoiceJpaEntity, UUID>
+interface InvoiceJpaRepository : JpaRepository<InvoiceJpaEntity, UUID> {
+    @EntityGraph(attributePaths = ["booking", "lines"])
+    fun findByBooking_Id(bookingId: UUID): InvoiceJpaEntity?
+}
 
 @Component
 @Transactional
@@ -72,6 +129,27 @@ class ContainerTypePersistenceAdapter(
 
     @Transactional(readOnly = true)
     override fun findById(id: UUID): ContainerType? = repository.findById(id).orElse(null)?.toDomain()
+
+    @Transactional(readOnly = true)
+    override fun findActiveById(id: UUID): ContainerType? =
+        repository.findByIdAndActiveTrue(id)?.toDomain()
+
+    @Transactional(readOnly = true)
+    override fun findActivePage(
+        page: Int,
+        size: Int,
+    ): PageResult<ContainerType> {
+        val result =
+            repository.findAllByActiveTrue(
+                PageRequest.of(page, size, Sort.by("id").ascending()),
+            )
+        return PageResult(
+            items = result.content.map { it.toDomain() },
+            page = result.number,
+            size = result.size,
+            totalElements = result.totalElements,
+        )
+    }
 }
 
 @Component
@@ -117,7 +195,6 @@ class BookingPersistenceAdapter(
                     deliveryAddress = booking.deliveryAddress.toJpa(),
                     status = booking.status,
                     dailyPriceCents = booking.dailyPriceCents,
-                    deliveryFeeCents = booking.deliveryFeeCents,
                     currencyCode = booking.currencyCode,
                     createdAt = booking.createdAt,
                     updatedAt = booking.updatedAt,
@@ -130,6 +207,25 @@ class BookingPersistenceAdapter(
 
     @Transactional(readOnly = true)
     override fun findById(id: UUID): Booking? = repository.findById(id).orElse(null)?.toDomain()
+
+    @Transactional(readOnly = true)
+    override fun findByCustomerId(
+        customerId: UUID,
+        page: Int,
+        size: Int,
+    ): PageResult<Booking> {
+        val result =
+            repository.findByCustomer_Id(
+                customerId,
+                PageRequest.of(page, size, Sort.by("createdAt").descending().and(Sort.by("id").ascending())),
+            )
+        return PageResult(
+            items = result.content.map { it.toDomain() },
+            page = result.number,
+            size = result.size,
+            totalElements = result.totalElements,
+        )
+    }
 }
 
 @Component
@@ -139,7 +235,7 @@ class ContainerAssignmentPersistenceAdapter(
     private val entityManager: EntityManager,
 ) : ContainerAssignmentRepository {
     override fun save(assignment: ContainerAssignment): ContainerAssignment =
-        repository.save(
+        repository.saveAndFlush(
             ContainerAssignmentJpaEntity(
                 id = assignment.id,
                 booking = entityManager.getReference(BookingJpaEntity::class.java, assignment.bookingId),
@@ -151,6 +247,49 @@ class ContainerAssignmentPersistenceAdapter(
 
     @Transactional(readOnly = true)
     override fun findById(id: UUID): ContainerAssignment? = repository.findById(id).orElse(null)?.toDomain()
+
+    @Transactional(readOnly = true)
+    override fun countAvailableContainers(
+        containerTypeId: UUID,
+        deliveryDate: java.time.LocalDate,
+        pickupDate: java.time.LocalDate,
+    ): Long =
+        (entityManager.createNativeQuery(AVAILABLE_CONTAINER_COUNT_SQL)
+            .setParameter("containerTypeId", containerTypeId)
+            .setParameter("deliveryDate", deliveryDate)
+            .setParameter("pickupDate", pickupDate)
+            .singleResult as Number).toLong()
+
+    override fun lockAvailableContainerIds(
+        containerTypeId: UUID,
+        deliveryDate: java.time.LocalDate,
+        pickupDate: java.time.LocalDate,
+        limit: Int,
+    ): List<UUID> =
+        entityManager.createNativeQuery(LOCK_AVAILABLE_CONTAINER_IDS_SQL)
+            .setParameter("containerTypeId", containerTypeId)
+            .setParameter("deliveryDate", deliveryDate)
+            .setParameter("pickupDate", pickupDate)
+            .setParameter("limit", limit)
+            .resultList
+            .map { it as UUID }
+
+    override fun releaseActiveAssignments(
+        bookingId: UUID,
+        releasedAt: java.time.Instant,
+    ) {
+        entityManager.createNativeQuery(
+            """
+            UPDATE container_assignments
+            SET released_at = :releasedAt
+            WHERE booking_id = :bookingId
+              AND released_at IS NULL
+            """,
+        )
+            .setParameter("bookingId", bookingId)
+            .setParameter("releasedAt", releasedAt)
+            .executeUpdate()
+    }
 }
 
 @Component
@@ -179,6 +318,10 @@ class InvoicePersistenceAdapter(
 
     @Transactional(readOnly = true)
     override fun findById(id: UUID): Invoice? = repository.findById(id).orElse(null)?.toDomain()
+
+    @Transactional(readOnly = true)
+    override fun findByBookingId(bookingId: UUID): Invoice? =
+        repository.findByBooking_Id(bookingId)?.toDomain()
 }
 
 private fun Address.toJpa() =
@@ -253,7 +396,6 @@ private fun BookingJpaEntity.toDomain() =
         deliveryAddress = deliveryAddress.toDomain(),
         status = status,
         dailyPriceCents = dailyPriceCents,
-        deliveryFeeCents = deliveryFeeCents,
         currencyCode = currencyCode,
         createdAt = createdAt,
         updatedAt = updatedAt,

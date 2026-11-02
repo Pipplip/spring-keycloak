@@ -139,14 +139,26 @@ class PersistenceIntegrationTest {
                 ),
             )
         }.isInstanceOf(DataIntegrityViolationException::class.java)
-        assertThat(flyway.info().applied().map { it.version?.version }).containsExactly("1")
+        assertThat(flyway.info().applied().map { it.version?.version }).containsExactly("1", "2")
         assertThat(flyway.migrate().migrationsExecuted).isZero()
         assertThat(
             requireNotNull(jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM flyway_schema_history WHERE version = '1' AND success",
+                "SELECT count(*) FROM flyway_schema_history WHERE version IN ('1', '2') AND success",
                 Int::class.javaObjectType,
             )),
-        ).isEqualTo(1)
+        ).isEqualTo(2)
+        assertThat(
+            requireNotNull(jdbcTemplate.queryForObject(
+                """
+                SELECT count(*)
+                FROM information_schema.columns
+                WHERE table_schema = current_schema()
+                  AND table_name = 'bookings'
+                  AND column_name = 'delivery_fee_cents'
+                """,
+                Int::class.javaObjectType,
+            )),
+        ).isZero
     }
 
     @Test
@@ -364,7 +376,6 @@ class PersistenceIntegrationTest {
         deliveryAddress = address(),
         status = BookingStatus.PENDING,
         dailyPriceCents = 2500,
-        deliveryFeeCents = 3000,
         currencyCode = "EUR",
         createdAt = instantNow(),
         updatedAt = instantNow(),

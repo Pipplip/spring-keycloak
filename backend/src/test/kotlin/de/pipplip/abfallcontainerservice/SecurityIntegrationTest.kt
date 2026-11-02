@@ -53,7 +53,7 @@ class SecurityIntegrationTest {
     @Test
     fun `public catalogue route permits anonymous requests`() {
         mockMvc.perform(get("/api/v1/container-types"))
-            .andExpect(status().isNotFound)
+            .andExpect(status().isOk)
     }
 
     @Test
@@ -78,7 +78,7 @@ class SecurityIntegrationTest {
         mockMvc.perform(
             get("/api/v1/bookings")
                 .with(jwt().jwt { it.subject(customer.keycloakSubject) }.authorities(SimpleGrantedAuthority("ROLE_USER"))),
-        ).andExpect(status().isNotFound)
+        ).andExpect(status().isOk)
 
         mockMvc.perform(
             get("/api/v1/bookings")

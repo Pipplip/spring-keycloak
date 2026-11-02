@@ -28,11 +28,11 @@
 - [x] Security tests
 
 ## Phase 5: Customer Features
-- [ ] Container types
-- [ ] Availability
-- [ ] Create bookings
-- [ ] List bookings
-- [ ] Cancel bookings
+- [x] Container types
+- [x] Availability
+- [x] Create bookings
+- [x] List bookings
+- [x] Cancel bookings
 
 ## Phase 6: Admin Features
 - [ ] Booking management

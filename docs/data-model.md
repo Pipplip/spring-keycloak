@@ -45,7 +45,6 @@ Represents one physical container.
 - deliveryAddress: Address
 - status: BookingStatus
 - dailyPriceCentsSnapshot: Long (BIGINT, non-negative integer minor units)
-- deliveryFeeCentsSnapshot: Long (BIGINT, non-negative integer minor units)
 - currencyCode: String (ISO 4217 alphabetic code)
 - createdAt: Instant
 - updatedAt: Instant

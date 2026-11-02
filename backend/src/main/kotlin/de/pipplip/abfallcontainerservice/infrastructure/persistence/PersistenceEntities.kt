@@ -133,8 +133,6 @@ class BookingJpaEntity(
     var status: BookingStatus,
     @Column(name = "daily_price_cents", nullable = false)
     var dailyPriceCents: Long,
-    @Column(name = "delivery_fee_cents", nullable = false)
-    var deliveryFeeCents: Long,
     @Column(name = "currency_code", nullable = false, length = 3)
     var currencyCode: String,
     @Column(name = "created_at", nullable = false)

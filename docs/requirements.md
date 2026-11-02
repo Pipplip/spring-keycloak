@@ -50,8 +50,11 @@ Administrators manage customers, inventory, bookings and invoices.
 - Create bookings.
 - View own bookings.
 - View booking details.
-- Cancel eligible bookings.
+- Cancel bookings in PENDING or CONFIRMED status without a cancellation fee.
 - Retrieve associated invoices.
+- Newly created bookings are PENDING and reserve the requested inventory.
+- A booking becomes CONFIRMED only after payment; payment processing is not
+  implemented in the Customer Features milestone.
 
 ### FR-006: Administration
 - View and filter all bookings.
@@ -88,9 +91,6 @@ Administrators manage customers, inventory, bookings and invoices.
 ## 5. Open Questions
 
 - Which payment provider should be integrated?
-- What is the cancellation period?
-- What are minimum and maximum rental durations?
-- How is the delivery fee calculated?
 - Which VAT rules apply?
 - When should invoices be generated?
 - Should invoice PDFs be generated?

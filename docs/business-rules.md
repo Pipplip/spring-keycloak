@@ -27,6 +27,9 @@ Booking statuses:
 - Pickup date must be after delivery date.
 - Every booking belongs to one customer.
 - A booking must have a delivery address.
+- A new booking starts in PENDING status and reserves the requested physical
+  containers.
+- A booking can move to CONFIRMED only after payment.
 - Status transitions must be validated.
 
 ## 4. Availability
@@ -41,19 +44,18 @@ Booking statuses:
 Base calculation:
 Daily price × rental days.
 
-Additional costs:
-- Delivery fee.
-- Applicable VAT.
+There is no delivery fee or cancellation fee. Applicable VAT remains subject
+to the approved tax policy.
 
 Historical prices must remain unchanged
 after a booking has been created.
 
 ## 6. Cancellation
 
-Cancellation conditions are not yet finalized.
-
-The agent must not implement cancellation fees
-until the cancellation policy has been approved.
+- Customers may cancel bookings in PENDING or CONFIRMED status.
+- Cancellation does not incur a fee and releases the booking's container
+  assignments.
+- Other booking statuses cannot be cancelled by customers.
 
 ## 7. Invoicing
 
