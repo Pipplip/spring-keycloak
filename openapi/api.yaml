@@ -329,7 +329,10 @@ paths:
         - Administration
       operationId: updateAdminContainerType
       summary: Update a container type
-      description: Requires the ADMIN role. Use the active field to deactivate a type.
+      description: |
+        Requires the ADMIN role. Use the active field to deactivate a type.
+        Deactivation and detail changes conflict while any booking references
+        the container type.
       security:
         - bearerAuth: []
       parameters:
@@ -355,6 +358,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /api/v1/admin/containers:
     get:
       tags:
@@ -418,6 +423,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
   /api/v1/admin/containers/{containerId}:
@@ -449,7 +456,10 @@ paths:
         - Administration
       operationId: updateAdminContainer
       summary: Update a physical container
-      description: Requires the ADMIN role.
+      description: |
+        Requires the ADMIN role. Container type changes, or changes to
+        MAINTENANCE or RETIRED status, conflict while active or future
+        assignments exist.
       security:
         - bearerAuth: []
       parameters:
@@ -475,6 +485,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /api/v1/admin/customers:
     get:
       tags:
@@ -555,6 +567,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /api/v1/admin/bookings:
     get:
       tags:
@@ -641,7 +655,11 @@ paths:
         - Administration
       operationId: updateAdminBookingStatus
       summary: Change a booking status
-      description: Requires the ADMIN role. Status transitions must follow the documented business rules.
+      description: |
+        Requires the ADMIN role. Allowed transitions are PENDING to CONFIRMED
+        or CANCELLED, CONFIRMED to DELIVERED or CANCELLED, and DELIVERED to
+        COMPLETED. CANCELLED and COMPLETED are terminal. Confirmation requires
+        a valid invoice with PAID status. Cancelling releases active assignments.
       security:
         - bearerAuth: []
       parameters:
@@ -702,9 +720,11 @@ paths:
       summary: Assign a physical container to a booking
       description: |
         Requires the ADMIN role. The assigned container must belong to the
-        booking's container type and must not be assigned to an overlapping
-        booking. Assignment constraints are validated by the later application
-        implementation.
+        booking's container type, have AVAILABLE status, and must not be
+        assigned to an overlapping booking. Manual assignment is allowed only
+        while the booking is PENDING or CONFIRMED. Assignment counts may exceed
+        the requested quantity; the system logs this and exposes the active
+        assignment count on the Booking response.
       security:
         - bearerAuth: []
       parameters:
@@ -1230,6 +1250,7 @@ components:
         - status
         - dailyPriceCents
         - currencyCode
+        - assignedContainerCount
         - createdAt
         - updatedAt
         - version
@@ -1268,6 +1289,11 @@ components:
           type: string
           pattern: '^[A-Z]{3}$'
           description: ISO 4217 alphabetic currency code for the booking amounts.
+        assignedContainerCount:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Number of unreleased physical-container assignments for this booking.
         createdAt:
           type: string
           format: date-time

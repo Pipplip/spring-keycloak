@@ -1,6 +1,9 @@
 package de.pipplip.abfallcontainerservice.security
 
 import de.pipplip.abfallcontainerservice.application.service.AuthenticatedSubjectMissingException
+import de.pipplip.abfallcontainerservice.application.service.AdminConflictException
+import de.pipplip.abfallcontainerservice.application.service.AdminRequestValidationException
+import de.pipplip.abfallcontainerservice.application.service.AdminResourceNotFoundException
 import de.pipplip.abfallcontainerservice.application.service.BookingConflictException
 import de.pipplip.abfallcontainerservice.application.service.BookingNotFoundException
 import de.pipplip.abfallcontainerservice.application.service.BookingOwnershipDeniedException
@@ -41,12 +44,17 @@ class CustomerOwnershipExceptionHandler {
     fun bookingNotFound(): ResponseEntity<ProblemDetail> =
         problem(HttpStatus.NOT_FOUND, "The requested booking was not found.")
 
-    @ExceptionHandler(ContainerTypeNotFoundException::class, InvoiceNotFoundException::class)
+    @ExceptionHandler(
+        ContainerTypeNotFoundException::class,
+        InvoiceNotFoundException::class,
+        AdminResourceNotFoundException::class,
+    )
     fun resourceNotFound(): ResponseEntity<ProblemDetail> =
         problem(HttpStatus.NOT_FOUND, "The requested resource was not found.")
 
     @ExceptionHandler(
         InvalidCustomerFeatureRequestException::class,
+        AdminRequestValidationException::class,
         MethodArgumentNotValidException::class,
         ConstraintViolationException::class,
         HandlerMethodValidationException::class,
@@ -57,7 +65,11 @@ class CustomerOwnershipExceptionHandler {
     fun invalidRequest(): ResponseEntity<ProblemDetail> =
         problem(HttpStatus.BAD_REQUEST, "The request is invalid.")
 
-    @ExceptionHandler(InsufficientInventoryException::class, BookingConflictException::class)
+    @ExceptionHandler(
+        InsufficientInventoryException::class,
+        BookingConflictException::class,
+        AdminConflictException::class,
+    )
     fun bookingConflict(): ResponseEntity<ProblemDetail> =
         problem(HttpStatus.CONFLICT, "The booking cannot be completed in the current state.")
 

@@ -88,10 +88,13 @@ class SecurityIntegrationTest {
 
     @Test
     fun `admin routes require ADMIN role and unmatched API routes are denied`() {
+        mockMvc.perform(get("/api/v1/admin/container-types"))
+            .andExpect(status().isUnauthorized)
+
         mockMvc.perform(
             get("/api/v1/admin/bookings")
                 .with(jwt().jwt { it.subject("administrator") }.authorities(SimpleGrantedAuthority("ROLE_ADMIN"))),
-        ).andExpect(status().isNotFound)
+        ).andExpect(status().isOk)
 
         mockMvc.perform(
             get("/api/v1/admin/bookings")

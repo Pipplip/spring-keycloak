@@ -61,6 +61,9 @@ to a booking.
 - assignedAt: Instant
 - releasedAt: Instant (optional)
 
+The API's `Booking.assignedContainerCount` is a derived count of assignments
+whose `releasedAt` is null; it is not stored on the booking record.
+
 ## 6. Invoice
 
 - id: UUID

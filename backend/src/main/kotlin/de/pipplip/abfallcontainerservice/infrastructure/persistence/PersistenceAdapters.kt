@@ -9,13 +9,22 @@ import de.pipplip.abfallcontainerservice.application.port.out.InvoiceRepository
 import de.pipplip.abfallcontainerservice.application.port.out.PageResult
 import de.pipplip.abfallcontainerservice.domain.model.Address
 import de.pipplip.abfallcontainerservice.domain.model.Booking
+import de.pipplip.abfallcontainerservice.domain.model.BookingStatus
 import de.pipplip.abfallcontainerservice.domain.model.Container
 import de.pipplip.abfallcontainerservice.domain.model.ContainerAssignment
+import de.pipplip.abfallcontainerservice.domain.model.ContainerStatus
 import de.pipplip.abfallcontainerservice.domain.model.ContainerType
 import de.pipplip.abfallcontainerservice.domain.model.Customer
 import de.pipplip.abfallcontainerservice.domain.model.Invoice
 import de.pipplip.abfallcontainerservice.domain.model.InvoiceLine
 import jakarta.persistence.EntityManager
+import jakarta.persistence.LockModeType
+import jakarta.persistence.criteria.CriteriaBuilder
+import jakarta.persistence.criteria.Predicate
+import jakarta.persistence.criteria.Root
+import org.springframework.data.jpa.repository.Lock
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.data.jpa.repository.JpaRepository
@@ -70,21 +79,87 @@ interface CustomerJpaRepository : JpaRepository<CustomerJpaEntity, UUID> {
 interface ContainerTypeJpaRepository : JpaRepository<ContainerTypeJpaEntity, UUID> {
     fun findByIdAndActiveTrue(id: UUID): ContainerTypeJpaEntity?
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select t from ContainerTypeJpaEntity t where t.id = :id")
+    fun findByIdForUpdate(@Param("id") id: UUID): ContainerTypeJpaEntity?
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select t from ContainerTypeJpaEntity t where t.id = :id and t.active = true")
+    fun findActiveByIdForUpdate(@Param("id") id: UUID): ContainerTypeJpaEntity?
+
     fun findAllByActiveTrue(pageable: org.springframework.data.domain.Pageable):
         org.springframework.data.domain.Page<ContainerTypeJpaEntity>
+
+    @Query(
+        """
+        select case when count(b.id) > 0 then true else false end
+        from BookingJpaEntity b
+        where b.containerType.id = :containerTypeId
+        """,
+    )
+    fun hasBookings(@Param("containerTypeId") containerTypeId: UUID): Boolean
 }
 
-interface ContainerJpaRepository : JpaRepository<ContainerJpaEntity, UUID>
+interface ContainerJpaRepository : JpaRepository<ContainerJpaEntity, UUID> {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from ContainerJpaEntity c where c.id = :id")
+    fun findByIdForUpdate(@Param("id") id: UUID): ContainerJpaEntity?
+
+}
 
 interface BookingJpaRepository : JpaRepository<BookingJpaEntity, UUID> {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select b from BookingJpaEntity b where b.id = :id")
+    fun findByIdForUpdate(@Param("id") id: UUID): BookingJpaEntity?
+
     @EntityGraph(attributePaths = ["customer", "containerType"])
     fun findByCustomer_Id(
         customerId: UUID,
         pageable: org.springframework.data.domain.Pageable,
     ): org.springframework.data.domain.Page<BookingJpaEntity>
+
 }
 
-interface ContainerAssignmentJpaRepository : JpaRepository<ContainerAssignmentJpaEntity, UUID>
+interface ContainerAssignmentJpaRepository : JpaRepository<ContainerAssignmentJpaEntity, UUID> {
+    @EntityGraph(attributePaths = ["booking", "container"])
+    fun findByBooking_Id(
+        bookingId: UUID,
+        pageable: org.springframework.data.domain.Pageable,
+    ): org.springframework.data.domain.Page<ContainerAssignmentJpaEntity>
+
+    @Query(
+        """
+        select a.booking.id as bookingId, count(a.id) as assignmentCount
+        from ContainerAssignmentJpaEntity a
+        where a.booking.id in :bookingIds and a.releasedAt is null
+        group by a.booking.id
+        """,
+    )
+    fun countUnreleasedByBookingIds(
+        @Param("bookingIds") bookingIds: Collection<UUID>,
+    ): List<AssignmentCountProjection>
+
+    @Query(
+        """
+        select case when count(a.id) > 0 then true else false end
+        from ContainerAssignmentJpaEntity a
+        where a.container.id = :containerId
+          and a.releasedAt is null
+          and a.booking.status <> de.pipplip.abfallcontainerservice.domain.model.BookingStatus.CANCELLED
+          and a.booking.pickupDate > :today
+        """,
+    )
+    fun hasActiveOrFutureAssignments(
+        @Param("containerId") containerId: UUID,
+        @Param("today") today: java.time.LocalDate,
+    ): Boolean
+}
+
+interface AssignmentCountProjection {
+    fun getBookingId(): UUID
+
+    fun getAssignmentCount(): Long
+}
 
 interface InvoiceJpaRepository : JpaRepository<InvoiceJpaEntity, UUID> {
     @EntityGraph(attributePaths = ["booking", "lines"])
@@ -97,7 +172,7 @@ class CustomerPersistenceAdapter(
     private val repository: CustomerJpaRepository,
 ) : CustomerRepository {
     override fun save(customer: Customer): Customer =
-        repository.save(
+        repository.saveAndFlush(
             CustomerJpaEntity(
                 id = customer.id,
                 keycloakSubject = customer.keycloakSubject,
@@ -117,22 +192,40 @@ class CustomerPersistenceAdapter(
     @Transactional(readOnly = true)
     override fun findByKeycloakSubject(keycloakSubject: String): Customer? =
         repository.findByKeycloakSubject(keycloakSubject)?.toDomain()
+
+    @Transactional(readOnly = true)
+    override fun findPage(page: Int, size: Int): PageResult<Customer> {
+        val result = repository.findAll(PageRequest.of(page, size, Sort.by("id").ascending()))
+        return PageResult(
+            items = result.content.map { it.toDomain() },
+            page = result.number,
+            size = result.size,
+            totalElements = result.totalElements,
+        )
+    }
 }
 
 @Component
 @Transactional
 class ContainerTypePersistenceAdapter(
     private val repository: ContainerTypeJpaRepository,
+    private val entityManager: EntityManager,
 ) : ContainerTypeRepository {
     override fun save(containerType: ContainerType): ContainerType =
-        repository.save(containerType.toJpa()).toDomain()
+        repository.saveAndFlush(containerType.toJpa()).toDomain()
 
     @Transactional(readOnly = true)
     override fun findById(id: UUID): ContainerType? = repository.findById(id).orElse(null)?.toDomain()
 
+    override fun findByIdForUpdate(id: UUID): ContainerType? =
+        repository.findByIdForUpdate(id)?.toDomain()
+
     @Transactional(readOnly = true)
     override fun findActiveById(id: UUID): ContainerType? =
         repository.findByIdAndActiveTrue(id)?.toDomain()
+
+    override fun findActiveByIdForUpdate(id: UUID): ContainerType? =
+        repository.findActiveByIdForUpdate(id)?.toDomain()
 
     @Transactional(readOnly = true)
     override fun findActivePage(
@@ -150,6 +243,35 @@ class ContainerTypePersistenceAdapter(
             totalElements = result.totalElements,
         )
     }
+
+    @Transactional(readOnly = true)
+    override fun findAdminPage(active: Boolean?, page: Int, size: Int): PageResult<ContainerType> {
+        val builder = entityManager.criteriaBuilder
+        val query = builder.createQuery(ContainerTypeJpaEntity::class.java)
+        val root = query.from(ContainerTypeJpaEntity::class.java)
+        active?.let { query.where(builder.equal(root.get<Boolean>("active"), it)) }
+        query.orderBy(builder.asc(root.get<UUID>("id")))
+        val items =
+            entityManager.createQuery(query)
+                .setFirstResult(page * size)
+                .setMaxResults(size)
+                .resultList
+
+        val countQuery = builder.createQuery(Long::class.java)
+        val countRoot = countQuery.from(ContainerTypeJpaEntity::class.java)
+        countQuery.select(builder.count(countRoot))
+        active?.let { countQuery.where(builder.equal(countRoot.get<Boolean>("active"), it)) }
+        return PageResult(
+            items = items.map { it.toDomain() },
+            page = page,
+            size = size,
+            totalElements = entityManager.createQuery(countQuery).singleResult,
+        )
+    }
+
+    @Transactional(readOnly = true)
+    override fun hasBookings(containerTypeId: UUID): Boolean =
+        repository.hasBookings(containerTypeId)
 }
 
 @Component
@@ -159,7 +281,7 @@ class ContainerPersistenceAdapter(
     private val entityManager: EntityManager,
 ) : ContainerRepository {
     override fun save(container: Container): Container =
-        repository.save(
+        repository.saveAndFlush(
             ContainerJpaEntity(
                 id = container.id,
                 inventoryNumber = container.inventoryNumber,
@@ -170,6 +292,40 @@ class ContainerPersistenceAdapter(
 
     @Transactional(readOnly = true)
     override fun findById(id: UUID): Container? = repository.findById(id).orElse(null)?.toDomain()
+
+    override fun findByIdForUpdate(id: UUID): Container? =
+        repository.findByIdForUpdate(id)?.toDomain()
+
+    @Transactional(readOnly = true)
+    override fun findAdminPage(
+        containerTypeId: UUID?,
+        status: ContainerStatus?,
+        page: Int,
+        size: Int,
+    ): PageResult<Container> {
+        val builder = entityManager.criteriaBuilder
+        val query = builder.createQuery(ContainerJpaEntity::class.java)
+        val root = query.from(ContainerJpaEntity::class.java)
+        val predicates = containerPredicates(root, builder, containerTypeId, status)
+        query.where(*predicates.toTypedArray())
+        query.orderBy(builder.asc(root.get<String>("inventoryNumber")), builder.asc(root.get<UUID>("id")))
+        val items =
+            entityManager.createQuery(query)
+                .setFirstResult(page * size)
+                .setMaxResults(size)
+                .resultList
+
+        val countQuery = builder.createQuery(Long::class.java)
+        val countRoot = countQuery.from(ContainerJpaEntity::class.java)
+        countQuery.select(builder.count(countRoot))
+        countQuery.where(*containerPredicates(countRoot, builder, containerTypeId, status).toTypedArray())
+        return PageResult(
+            items = items.map { it.toDomain() },
+            page = page,
+            size = size,
+            totalElements = entityManager.createQuery(countQuery).singleResult,
+        )
+    }
 }
 
 @Component
@@ -208,6 +364,9 @@ class BookingPersistenceAdapter(
     @Transactional(readOnly = true)
     override fun findById(id: UUID): Booking? = repository.findById(id).orElse(null)?.toDomain()
 
+    override fun findByIdForUpdate(id: UUID): Booking? =
+        repository.findByIdForUpdate(id)?.toDomain()
+
     @Transactional(readOnly = true)
     override fun findByCustomerId(
         customerId: UUID,
@@ -224,6 +383,51 @@ class BookingPersistenceAdapter(
             page = result.number,
             size = result.size,
             totalElements = result.totalElements,
+        )
+    }
+
+    @Transactional(readOnly = true)
+    override fun findAdminPage(
+        status: BookingStatus?,
+        customerId: UUID?,
+        containerTypeId: UUID?,
+        deliveryFrom: java.time.LocalDate?,
+        deliveryTo: java.time.LocalDate?,
+        page: Int,
+        size: Int,
+    ): PageResult<Booking> {
+        val builder = entityManager.criteriaBuilder
+        val query = builder.createQuery(BookingJpaEntity::class.java)
+        val root = query.from(BookingJpaEntity::class.java)
+        val predicates =
+            bookingPredicates(root, builder, status, customerId, containerTypeId, deliveryFrom, deliveryTo)
+        query.where(*predicates.toTypedArray())
+        query.orderBy(builder.desc(root.get<java.time.Instant>("createdAt")), builder.asc(root.get<UUID>("id")))
+        val items =
+            entityManager.createQuery(query)
+                .setFirstResult(page * size)
+                .setMaxResults(size)
+                .resultList
+
+        val countQuery = builder.createQuery(Long::class.java)
+        val countRoot = countQuery.from(BookingJpaEntity::class.java)
+        countQuery.select(builder.count(countRoot))
+        countQuery.where(
+            *bookingPredicates(
+                countRoot,
+                builder,
+                status,
+                customerId,
+                containerTypeId,
+                deliveryFrom,
+                deliveryTo,
+            ).toTypedArray(),
+        )
+        return PageResult(
+            items = items.map { it.toDomain() },
+            page = page,
+            size = size,
+            totalElements = entityManager.createQuery(countQuery).singleResult,
         )
     }
 }
@@ -247,6 +451,36 @@ class ContainerAssignmentPersistenceAdapter(
 
     @Transactional(readOnly = true)
     override fun findById(id: UUID): ContainerAssignment? = repository.findById(id).orElse(null)?.toDomain()
+
+    @Transactional(readOnly = true)
+    override fun findByBookingId(
+        bookingId: UUID,
+        page: Int,
+        size: Int,
+    ): PageResult<ContainerAssignment> {
+        val result =
+            repository.findByBooking_Id(
+                bookingId,
+                PageRequest.of(page, size, Sort.by("assignedAt").descending().and(Sort.by("id").ascending())),
+            )
+        return PageResult(
+            items = result.content.map { it.toDomain() },
+            page = result.number,
+            size = result.size,
+            totalElements = result.totalElements,
+        )
+    }
+
+    @Transactional(readOnly = true)
+    override fun countActiveAssignments(bookingIds: Collection<UUID>): Map<UUID, Int> {
+        if (bookingIds.isEmpty()) return emptyMap()
+        return repository.countUnreleasedByBookingIds(bookingIds)
+            .associate { it.getBookingId() to it.getAssignmentCount().toInt() }
+    }
+
+    @Transactional(readOnly = true)
+    override fun hasActiveOrFutureAssignments(containerId: UUID, today: java.time.LocalDate): Boolean =
+        repository.hasActiveOrFutureAssignments(containerId, today)
 
     @Transactional(readOnly = true)
     override fun countAvailableContainers(
@@ -323,6 +557,44 @@ class InvoicePersistenceAdapter(
     override fun findByBookingId(bookingId: UUID): Invoice? =
         repository.findByBooking_Id(bookingId)?.toDomain()
 }
+
+private fun containerPredicates(
+    root: Root<ContainerJpaEntity>,
+    builder: CriteriaBuilder,
+    containerTypeId: UUID?,
+    status: ContainerStatus?,
+): List<Predicate> =
+    buildList {
+        containerTypeId?.let {
+            add(builder.equal(root.get<ContainerTypeJpaEntity>("containerType").get<UUID>("id"), it))
+        }
+        status?.let { add(builder.equal(root.get<ContainerStatus>("status"), it)) }
+    }
+
+private fun bookingPredicates(
+    root: Root<BookingJpaEntity>,
+    builder: CriteriaBuilder,
+    status: BookingStatus?,
+    customerId: UUID?,
+    containerTypeId: UUID?,
+    deliveryFrom: java.time.LocalDate?,
+    deliveryTo: java.time.LocalDate?,
+): List<Predicate> =
+    buildList {
+        status?.let { add(builder.equal(root.get<BookingStatus>("status"), it)) }
+        customerId?.let {
+            add(builder.equal(root.get<CustomerJpaEntity>("customer").get<UUID>("id"), it))
+        }
+        containerTypeId?.let {
+            add(builder.equal(root.get<ContainerTypeJpaEntity>("containerType").get<UUID>("id"), it))
+        }
+        deliveryFrom?.let {
+            add(builder.greaterThanOrEqualTo(root.get("deliveryDate"), it))
+        }
+        deliveryTo?.let {
+            add(builder.lessThanOrEqualTo(root.get("deliveryDate"), it))
+        }
+    }
 
 private fun Address.toJpa() =
     AddressJpaEmbeddable(

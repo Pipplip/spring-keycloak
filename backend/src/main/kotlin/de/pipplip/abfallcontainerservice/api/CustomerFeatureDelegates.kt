@@ -2,6 +2,7 @@ package de.pipplip.abfallcontainerservice.api
 
 import de.pipplip.abfallcontainerservice.application.port.out.PageResult
 import de.pipplip.abfallcontainerservice.application.service.AvailabilityService
+import de.pipplip.abfallcontainerservice.application.service.BookingAssignmentCountService
 import de.pipplip.abfallcontainerservice.application.service.ContainerCatalogueService
 import de.pipplip.abfallcontainerservice.application.service.CustomerBookingCancellationService
 import de.pipplip.abfallcontainerservice.application.service.CustomerBookingQueryService
@@ -82,38 +83,57 @@ class BookingsApiDelegateImpl(
     private val bookingService: CustomerBookingService,
     private val bookingQueryService: CustomerBookingQueryService,
     private val cancellationService: CustomerBookingCancellationService,
+    private val assignmentCountService: BookingAssignmentCountService,
 ) : BookingsApiDelegate {
     override fun createBooking(
         bookingRequest: de.pipplip.abfallcontainerservice.generated.model.BookingRequest,
     ): ResponseEntity<ApiBooking> =
-        ResponseEntity.status(HttpStatus.CREATED).body(
-            bookingService.createBooking(
+        bookingService.createBooking(
                 containerTypeId = bookingRequest.containerTypeId,
                 quantity = bookingRequest.quantity,
                 deliveryDate = bookingRequest.deliveryDate,
                 pickupDate = bookingRequest.pickupDate,
                 deliveryAddress = bookingRequest.deliveryAddress.toDomain(),
-            ).toApi(),
-        )
+            ).let { booking ->
+                ResponseEntity.status(HttpStatus.CREATED)
+                    .body(booking.toApi(assignedContainerCount = booking.quantity))
+            }
 
     override fun getMyBooking(bookingId: java.util.UUID): ResponseEntity<ApiBooking> =
-        ResponseEntity.ok(bookingQueryService.getMyBooking(bookingId).toApi())
+        bookingQueryService.getMyBooking(bookingId).let { booking ->
+            ResponseEntity.ok(
+                booking.toApi(
+                    assignedContainerCount =
+                        assignmentCountService.count(listOf(booking.id))[booking.id] ?: 0,
+                ),
+            )
+        }
 
     override fun listMyBookings(
         page: Int,
         size: Int,
     ): ResponseEntity<ApiBookingPage> {
         val result = bookingQueryService.listMyBookings(page, size)
+        val assignmentCounts = assignmentCountService.count(result.items.map { it.id })
         return ResponseEntity.ok(
             ApiBookingPage(
-                items = result.items.map { it.toApi() },
+                items = result.items.map { booking ->
+                    booking.toApi(assignedContainerCount = assignmentCounts[booking.id] ?: 0)
+                },
                 page = result.toApiMetadata(),
             ),
         )
     }
 
     override fun requestBookingCancellation(bookingId: java.util.UUID): ResponseEntity<ApiBooking> =
-        ResponseEntity.ok(cancellationService.cancelMyBooking(bookingId).toApi())
+        cancellationService.cancelMyBooking(bookingId).let { booking ->
+            ResponseEntity.ok(
+                booking.toApi(
+                    assignedContainerCount =
+                        assignmentCountService.count(listOf(booking.id))[booking.id] ?: 0,
+                ),
+            )
+        }
 }
 
 @Service
@@ -124,7 +144,7 @@ class InvoicesApiDelegateImpl(
         ResponseEntity.ok(invoiceQueryService.getMyBookingInvoice(bookingId).toApi())
 }
 
-private fun DomainContainerType.toApi() =
+internal fun DomainContainerType.toApi() =
     ApiContainerType(
         id = id,
         name = name,
@@ -135,7 +155,7 @@ private fun DomainContainerType.toApi() =
         active = active,
     )
 
-private fun ApiAddress.toDomain() =
+internal fun ApiAddress.toDomain() =
     DomainAddress(
         street = street,
         houseNumber = houseNumber,
@@ -144,7 +164,7 @@ private fun ApiAddress.toDomain() =
         countryCode = countryCode,
     )
 
-private fun DomainAddress.toApi() =
+internal fun DomainAddress.toApi() =
     ApiAddress(
         street = street,
         houseNumber = houseNumber,
@@ -153,7 +173,7 @@ private fun DomainAddress.toApi() =
         countryCode = countryCode,
     )
 
-private fun DomainBooking.toApi() =
+internal fun DomainBooking.toApi(assignedContainerCount: Int) =
     ApiBooking(
         id = id,
         customerId = customerId,
@@ -165,6 +185,7 @@ private fun DomainBooking.toApi() =
         status = de.pipplip.abfallcontainerservice.generated.model.BookingStatus.valueOf(status.name),
         dailyPriceCents = dailyPriceCents,
         currencyCode = currencyCode,
+        assignedContainerCount = assignedContainerCount,
         createdAt = createdAt.atOffset(ZoneOffset.UTC),
         updatedAt = updatedAt.atOffset(ZoneOffset.UTC),
         version = version,
@@ -194,7 +215,7 @@ private fun DomainInvoice.toApi() =
             },
     )
 
-private fun PageResult<*>.toApiMetadata() =
+internal fun PageResult<*>.toApiMetadata() =
     ApiPageMetadata(
         page = page,
         propertySize = size,

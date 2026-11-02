@@ -35,10 +35,11 @@
 - [x] Cancel bookings
 
 ## Phase 6: Admin Features
-- [ ] Booking management
-- [ ] Container inventory
-- [ ] Container type management
-- [ ] Status management
+- [x] Booking management
+- [x] Container inventory
+- [x] Container type management
+- [x] Status management
+- [x] Customer administration (approved addition)
 
 ## Phase 7: Invoicing
 - [ ] Invoice creation

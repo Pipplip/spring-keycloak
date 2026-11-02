@@ -80,7 +80,7 @@ class CustomerBookingService(
         validateRentalRequest(deliveryDate, pickupDate, quantity)
         val customer = currentCustomerService.requireCurrentCustomer()
         val containerType =
-            containerTypeRepository.findActiveById(containerTypeId) ?: throw ContainerTypeNotFoundException()
+            containerTypeRepository.findActiveByIdForUpdate(containerTypeId) ?: throw ContainerTypeNotFoundException()
         val containerIds =
             assignmentRepository.lockAvailableContainerIds(
                 containerTypeId = containerTypeId,
@@ -160,7 +160,8 @@ class CustomerBookingCancellationService(
 ) {
     @Transactional
     fun cancelMyBooking(bookingId: UUID): Booking {
-        val booking = bookingOwnershipAuthorizer.requireOwner(bookingId)
+        val ownedBooking = bookingOwnershipAuthorizer.requireOwner(bookingId)
+        val booking = bookingRepository.findByIdForUpdate(ownedBooking.id) ?: throw BookingNotFoundException()
         if (booking.status != BookingStatus.PENDING && booking.status != BookingStatus.CONFIRMED) {
             throw BookingConflictException()
         }

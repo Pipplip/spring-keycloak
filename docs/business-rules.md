@@ -71,8 +71,28 @@ Invoice statuses:
 - Payment is initially managed manually.
 - PDF generation is a future enhancement.
 
-## 8. Notifications
+## 8. Administrator Management
 
-Send emails when:
-- A booking is confirmed.
-- A booking is cancelled.
+- Administrators may transition bookings from PENDING to CONFIRMED or
+  CANCELLED, from CONFIRMED to DELIVERED or CANCELLED, and from DELIVERED to
+  COMPLETED. CANCELLED and COMPLETED are terminal.
+- A booking can be confirmed only when it has a valid invoice whose status is
+  PAID. Cancelling a booking releases all unreleased container assignments.
+- Administrators may assign or release containers only while a booking is
+  PENDING or CONFIRMED. These operations do not change the booking status.
+- An assignment requires an AVAILABLE container of the booking's container
+  type and must preserve the no-overlap invariant. Assignments may exceed the
+  requested booking quantity; over-assignment is logged and the current
+  unreleased assignment count is visible on the Booking API response.
+- A container's type may be changed only when it has no unreleased assignment
+  for a non-cancelled booking whose pickup date is in the future. Changing a
+  container to MAINTENANCE or RETIRED is subject to the same restriction.
+- A container type may be deactivated or have its details changed only when no
+  existing booking references it. Existing booking price snapshots are never
+  changed.
+- Administrator booking status changes do not send notifications.
+
+## 9. Notifications
+
+- System notifications are limited to customer-initiated booking actions.
+- Administrator-initiated status changes do not send notifications.

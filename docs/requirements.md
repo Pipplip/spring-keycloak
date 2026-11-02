@@ -63,6 +63,9 @@ Administrators manage customers, inventory, bookings and invoices.
 - Manage physical containers.
 - Manage invoices.
 - Manage customers.
+- Administrators may manually assign more containers than the quantity
+  requested by a booking; the system records this event and makes the active
+  assignment count visible on the booking response.
 
 ### FR-007: Invoicing
 - Create invoices for bookings.
