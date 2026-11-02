@@ -151,6 +151,7 @@ Fuehre die folgenden Befehle im Backend-Verzeichnis aus:
 .\gradlew.bat generateAngularOpenApi
 .\gradlew.bat validateAngularOpenApiOutput
 .\gradlew.bat test
+.\gradlew.bat build
 ```
 
 Unter Bash verwendest du `./gradlew` mit denselben Gradle-Tasks.
@@ -163,6 +164,13 @@ validiert. Die geplante Angular-Anwendung ist in Phase 9 der
 `planning/roadmap.md` vorgesehen. Ihre Architektur- und Sicherheitsvorgaben
 stehen in `docs/architecture.md`; sie soll den generierten Client verwenden
 und keine API-Modelle oder Endpunkte manuell duplizieren.
+
+API-Fehler verwenden RFC-7807-Problem-Details mit dem Medientyp
+`application/problem+json`. Unerwartete Serverfehler liefern einen generischen
+500-Fehler; interne Ausnahme- und Datenbankdetails werden nicht an Clients
+ausgegeben. Paginierte Endpunkte verwenden nullbasierte Seiten (`page >= 0`)
+und Seitengroessen von 1 bis 100. Listen sind deterministisch sortiert, damit
+benachbarte Seiten bei gleichen Zeitstempeln stabil bleiben.
 
 ## Geplante Angular-Anwendung
 

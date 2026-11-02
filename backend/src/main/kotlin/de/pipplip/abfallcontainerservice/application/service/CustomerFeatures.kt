@@ -198,7 +198,7 @@ private fun requireValidPage(
     page: Int,
     size: Int,
 ) {
-    if (page < 0 || size !in 1..100) {
+    if (page < 0 || size !in 1..100 || page > Int.MAX_VALUE / size) {
         throw InvalidCustomerFeatureRequestException()
     }
 }

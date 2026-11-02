@@ -38,6 +38,8 @@ paths:
                 $ref: '#/components/schemas/ContainerTypePage'
         '400':
           $ref: '#/components/responses/BadRequest'
+        default:
+          $ref: '#/components/responses/InternalServerError'
   /api/v1/container-types/{containerTypeId}:
     get:
       tags:
@@ -57,6 +59,8 @@ paths:
                 $ref: '#/components/schemas/ContainerType'
         '404':
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/InternalServerError'
   /api/v1/availability:
     get:
       tags:
@@ -106,6 +110,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/InternalServerError'
   /api/v1/bookings:
     get:
       tags:
@@ -131,6 +137,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/InternalServerError'
     post:
       tags:
         - Bookings
@@ -167,6 +175,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        default:
+          $ref: '#/components/responses/InternalServerError'
   /api/v1/bookings/{bookingId}:
     get:
       tags:
@@ -191,6 +201,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/InternalServerError'
   /api/v1/bookings/{bookingId}/cancellation:
     post:
       tags:
@@ -220,6 +232,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        default:
+          $ref: '#/components/responses/InternalServerError'
   /api/v1/bookings/{bookingId}/invoice:
     get:
       tags:
@@ -244,6 +258,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/InternalServerError'
   /api/v1/admin/container-types:
     get:
       tags:
@@ -274,6 +290,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/InternalServerError'
     post:
       tags:
         - Administration
@@ -301,6 +319,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/InternalServerError'
   /api/v1/admin/container-types/{containerTypeId}:
     get:
       tags:
@@ -325,6 +345,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/InternalServerError'
     put:
       tags:
         - Administration
@@ -361,6 +383,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        default:
+          $ref: '#/components/responses/InternalServerError'
   /api/v1/admin/containers:
     get:
       tags:
@@ -397,6 +421,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/InternalServerError'
     post:
       tags:
         - Administration
@@ -428,6 +454,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        default:
+          $ref: '#/components/responses/InternalServerError'
   /api/v1/admin/containers/{containerId}:
     get:
       tags:
@@ -452,6 +480,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/InternalServerError'
     put:
       tags:
         - Administration
@@ -488,6 +518,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        default:
+          $ref: '#/components/responses/InternalServerError'
   /api/v1/admin/customers:
     get:
       tags:
@@ -513,6 +545,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/InternalServerError'
   /api/v1/admin/customers/{customerId}:
     get:
       tags:
@@ -537,6 +571,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/InternalServerError'
     put:
       tags:
         - Administration
@@ -570,6 +606,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        default:
+          $ref: '#/components/responses/InternalServerError'
   /api/v1/admin/bookings:
     get:
       tags:
@@ -626,6 +664,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/InternalServerError'
   /api/v1/admin/bookings/{bookingId}:
     get:
       tags:
@@ -650,6 +690,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/InternalServerError'
   /api/v1/admin/bookings/{bookingId}/status:
     patch:
       tags:
@@ -688,6 +730,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        default:
+          $ref: '#/components/responses/InternalServerError'
   /api/v1/admin/bookings/{bookingId}/container-assignments:
     get:
       tags:
@@ -714,6 +758,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/InternalServerError'
     post:
       tags:
         - Administration
@@ -753,6 +799,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        default:
+          $ref: '#/components/responses/InternalServerError'
   /api/v1/admin/bookings/{bookingId}/container-assignments/{assignmentId}/release:
     post:
       tags:
@@ -780,6 +828,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        default:
+          $ref: '#/components/responses/InternalServerError'
   /api/v1/admin/invoices:
     get:
       tags:
@@ -810,6 +860,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/InternalServerError'
   /api/v1/admin/invoices/{invoiceId}:
     get:
       tags:
@@ -834,6 +886,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/InternalServerError'
   /api/v1/admin/bookings/{bookingId}/invoice:
     post:
       tags:
@@ -865,6 +919,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        default:
+          $ref: '#/components/responses/InternalServerError'
   /api/v1/admin/invoices/{invoiceId}/mark-paid:
     post:
       tags:
@@ -891,6 +947,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        default:
+          $ref: '#/components/responses/InternalServerError'
   /api/v1/admin/invoices/{invoiceId}/send:
     post:
       tags:
@@ -917,6 +975,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        default:
+          $ref: '#/components/responses/InternalServerError'
   /api/v1/admin/invoices/{invoiceId}/void:
     post:
       tags:
@@ -943,6 +1003,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        default:
+          $ref: '#/components/responses/InternalServerError'
 components:
   securitySchemes:
     bearerAuth:
@@ -1040,6 +1102,12 @@ components:
             $ref: '#/components/schemas/ProblemDetail'
     Conflict:
       description: The operation conflicts with current state or business rules.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    InternalServerError:
+      description: An unexpected server error occurred.
       content:
         application/problem+json:
           schema:

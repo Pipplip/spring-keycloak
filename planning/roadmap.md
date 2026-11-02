@@ -49,11 +49,11 @@
 - [ ] Email notifications (deferred to FEAT-001 in the backlog)
 
 ## Phase 8: Hardening
-- [ ] Validation
-- [ ] Error handling
-- [ ] Logging
-- [ ] Pagination
-- [ ] Extended tests
+- [x] Validation
+- [x] Error handling
+- [x] Logging
+- [x] Pagination
+- [x] Extended tests
 
 ## Phase 9: Frontend
 - [ ] Angular project

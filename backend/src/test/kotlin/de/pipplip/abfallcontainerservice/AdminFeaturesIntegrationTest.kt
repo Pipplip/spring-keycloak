@@ -291,6 +291,158 @@ class AdminFeaturesIntegrationTest {
     }
 
     @Test
+    fun `all admin paginated routes enforce bounds and report page metadata`() {
+        val customer = saveCustomer()
+        val type = saveType()
+        val booking = saveBooking(customer.id, type.id)
+        val container = saveContainer(type.id)
+        assignmentRepository.save(
+            ContainerAssignment(
+                id = UUID.randomUUID(),
+                bookingId = booking.id,
+                containerId = container.id,
+                assignedAt = Instant.now(),
+                releasedAt = null,
+            ),
+        )
+        adminInvoiceService.createForBooking(booking.id)
+
+        val routes =
+            listOf(
+                "/api/v1/admin/container-types",
+                "/api/v1/admin/containers",
+                "/api/v1/admin/customers",
+                "/api/v1/admin/bookings",
+                "/api/v1/admin/bookings/${booking.id}/container-assignments",
+                "/api/v1/admin/invoices",
+            )
+        routes.forEach { route ->
+            mockMvc.perform(get(route).with(adminToken()))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.page.page").value(0))
+                .andExpect(jsonPath("$.page.size").value(20))
+
+            listOf("1", "100").forEach { size ->
+                mockMvc.perform(get(route).with(adminToken()).param("page", "0").param("size", size))
+                    .andExpect(status().isOk)
+                    .andExpect(jsonPath("$.page.page").value(0))
+                    .andExpect(jsonPath("$.page.size").value(size.toInt()))
+                    .andExpect(jsonPath("$.page.totalElements").isNumber)
+                    .andExpect(jsonPath("$.page.totalPages").isNumber)
+            }
+
+            listOf(
+                "page" to "-1",
+                "size" to "0",
+                "size" to "101",
+                "page" to "21474837",
+            ).forEach { (name, value) ->
+                val request = get(route).with(adminToken()).param(name, value)
+                if (name == "page" && value == "21474837") request.param("size", "100")
+                val result =
+                    mockMvc.perform(request)
+                        .andExpect(status().isBadRequest)
+                        .andReturn()
+                assertThat(result.response.contentType).startsWith(MediaType.APPLICATION_PROBLEM_JSON_VALUE)
+                assertThat(result.response.contentAsString).contains("\"status\":400")
+            }
+        }
+
+        val invalidEnum =
+            mockMvc.perform(
+                get("/api/v1/admin/bookings").with(adminToken()).param("status", "UNKNOWN"),
+            ).andExpect(status().isBadRequest)
+                .andReturn()
+        assertThat(invalidEnum.response.contentType).startsWith(MediaType.APPLICATION_PROBLEM_JSON_VALUE)
+        assertThat(invalidEnum.response.contentAsString).contains("\"title\":\"Bad Request\"")
+
+        val invalidBody =
+            mockMvc.perform(
+                post("/api/v1/admin/container-types")
+                    .with(adminToken())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{"),
+            ).andExpect(status().isBadRequest)
+                .andReturn()
+        assertThat(invalidBody.response.contentType).startsWith(MediaType.APPLICATION_PROBLEM_JSON_VALUE)
+        assertThat(invalidBody.response.contentAsString)
+            .contains("\"status\":400")
+            .doesNotContain("JsonParseException")
+    }
+
+    @Test
+    fun `timestamp ties use stable id ordering across booking assignment and invoice pages`() {
+        val customer = saveCustomer()
+        val type = saveType()
+        val timestamp = Instant.parse("2026-10-01T12:00:00Z")
+        val firstId = UUID.fromString("00000000-0000-0000-0000-000000000001")
+        val secondId = UUID.fromString("00000000-0000-0000-0000-000000000002")
+        val firstBooking =
+            saveBooking(customer.id, type.id, id = firstId, createdAt = timestamp)
+        val secondBooking =
+            saveBooking(customer.id, type.id, id = secondId, createdAt = timestamp)
+
+        listOf(firstBooking.id, secondBooking.id).forEach { bookingId ->
+            val invoiceId = if (bookingId == firstBooking.id) firstId else secondId
+            saveInvoice(bookingId, InvoiceStatus.DRAFT, id = invoiceId, createdAt = timestamp)
+        }
+
+        val firstContainer = saveContainer(type.id, inventoryNumber = "PAGE-ORDER-1")
+        val secondContainer = saveContainer(type.id, inventoryNumber = "PAGE-ORDER-2")
+        val assignmentTime = timestamp.plusSeconds(1)
+        listOf(firstContainer.id, secondContainer.id).forEachIndexed { index, containerId ->
+            assignmentRepository.save(
+                ContainerAssignment(
+                    id = if (index == 0) firstId else secondId,
+                    bookingId = firstBooking.id,
+                    containerId = containerId,
+                    assignedAt = assignmentTime,
+                    releasedAt = null,
+                ),
+            )
+        }
+
+        mockMvc.perform(
+            get("/api/v1/admin/bookings").with(adminToken()).param("size", "1").param("page", "0"),
+        ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.items[0].id").value(firstId.toString()))
+            .andExpect(jsonPath("$.page.totalElements").value(2))
+            .andExpect(jsonPath("$.page.totalPages").value(2))
+
+        mockMvc.perform(
+            get("/api/v1/admin/bookings").with(adminToken()).param("size", "1").param("page", "1"),
+        ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.items[0].id").value(secondId.toString()))
+
+        mockMvc.perform(
+            get("/api/v1/admin/bookings/${firstBooking.id}/container-assignments")
+                .with(adminToken())
+                .param("size", "1")
+                .param("page", "0"),
+        ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.items[0].id").value(firstId.toString()))
+
+        mockMvc.perform(
+            get("/api/v1/admin/bookings/${firstBooking.id}/container-assignments")
+                .with(adminToken())
+                .param("size", "1")
+                .param("page", "1"),
+        ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.items[0].id").value(secondId.toString()))
+
+        mockMvc.perform(
+            get("/api/v1/admin/invoices").with(adminToken()).param("size", "1").param("page", "0"),
+        ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.items[0].id").value(firstId.toString()))
+            .andExpect(jsonPath("$.page.totalElements").value(2))
+
+        mockMvc.perform(
+            get("/api/v1/admin/invoices").with(adminToken()).param("size", "1").param("page", "1"),
+        ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.items[0].id").value(secondId.toString()))
+    }
+
+    @Test
     fun `admin assignments enforce eligibility retain history and expose assignment counts`() {
         val customer = saveCustomer()
         val type = saveType()
@@ -709,10 +861,12 @@ class AdminFeaturesIntegrationTest {
         pickupDate: LocalDate = todayPlus(13),
         quantity: Int = 1,
         status: BookingStatus = BookingStatus.PENDING,
+        id: UUID = UUID.randomUUID(),
+        createdAt: Instant = Instant.now(),
     ) =
         bookingRepository.save(
             Booking(
-                id = UUID.randomUUID(),
+                id = id,
                 customerId = customerId,
                 containerTypeId = typeId,
                 quantity = quantity,
@@ -722,16 +876,21 @@ class AdminFeaturesIntegrationTest {
                 status = status,
                 dailyPriceCents = 2500,
                 currencyCode = "EUR",
-                createdAt = Instant.now(),
+                createdAt = createdAt,
                 updatedAt = Instant.now(),
                 version = 0,
             ),
         )
 
-    private fun saveInvoice(bookingId: UUID, status: InvoiceStatus) =
+    private fun saveInvoice(
+        bookingId: UUID,
+        status: InvoiceStatus,
+        id: UUID = UUID.randomUUID(),
+        createdAt: Instant = Instant.now(),
+    ) =
         invoiceRepository.save(
             Invoice(
-                id = UUID.randomUUID(),
+                id = id,
                 bookingId = bookingId,
                 invoiceNumber = "INV-${UUID.randomUUID()}",
                 netAmountCents = 10000,
@@ -739,7 +898,7 @@ class AdminFeaturesIntegrationTest {
                 grossAmountCents = 10000,
                 currencyCode = "EUR",
                 status = status,
-                createdAt = Instant.now(),
+                createdAt = createdAt,
                 lines = emptyList(),
             ),
         )

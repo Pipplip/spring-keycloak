@@ -1,5 +1,8 @@
 package de.pipplip.abfallcontainerservice
 
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.JWSHeader
 import com.nimbusds.jose.crypto.RSASSASigner
@@ -19,6 +22,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.context.annotation.Import
 import org.springframework.http.MediaType
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.oauth2.jwt.JwtDecoder
@@ -29,6 +33,7 @@ import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import org.slf4j.LoggerFactory
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
@@ -40,6 +45,7 @@ import java.util.UUID
 @Testcontainers
 @SpringBootTest
 @AutoConfigureMockMvc
+@Import(UnexpectedApiFailureTestController::class)
 class SecurityIntegrationTest {
     @Autowired
     private lateinit var mockMvc: MockMvc
@@ -64,7 +70,54 @@ class SecurityIntegrationTest {
                 .andReturn()
 
         assertThat(result.response.contentType).startsWith(MediaType.APPLICATION_PROBLEM_JSON_VALUE)
-        assertThat(result.response.contentAsString).contains("\"status\":401")
+        assertThat(result.response.contentAsString)
+            .contains("\"title\":\"Unauthorized\"")
+            .contains("\"status\":401")
+    }
+
+    @Test
+    fun `unexpected API failures are logged and returned as safe problem details`() {
+        val logger =
+            LoggerFactory.getLogger(
+                de.pipplip.abfallcontainerservice.security.CustomerOwnershipExceptionHandler::class.java,
+            ) as Logger
+        val appender =
+            ListAppender<ILoggingEvent>().apply {
+                context = logger.loggerContext
+                start()
+            }
+        logger.addAppender(appender)
+
+        try {
+            val result =
+                mockMvc.perform(get("/test-api/unexpected-failure/sensitive-test-marker"))
+                    .andExpect(status().isInternalServerError)
+                    .andReturn()
+
+            assertThat(result.response.contentType).startsWith(MediaType.APPLICATION_PROBLEM_JSON_VALUE)
+            assertThat(result.response.contentAsString)
+                .contains("\"title\":\"Internal Server Error\"")
+                .contains("\"status\":500")
+                .contains("\"detail\":\"An unexpected error occurred.\"")
+                .doesNotContain("sensitive-exception-marker")
+            assertThat(appender.list.map { it.formattedMessage })
+                .anyMatch { it.contains("Unexpected API failure") }
+                .noneMatch { it.contains("sensitive-test-marker") || it.contains("sensitive-exception-marker") }
+        } finally {
+            logger.detachAppender(appender)
+            appender.stop()
+        }
+    }
+
+    @Test
+    fun `constraint violations from API handlers use problem details`() {
+        val result =
+            mockMvc.perform(get("/test-api/constraint-failure"))
+                .andExpect(status().isBadRequest)
+                .andReturn()
+
+        assertThat(result.response.contentType).startsWith(MediaType.APPLICATION_PROBLEM_JSON_VALUE)
+        assertThat(result.response.contentAsString).contains("\"status\":400")
     }
 
     @Test
@@ -113,7 +166,9 @@ class SecurityIntegrationTest {
                     .with(jwt().jwt { it.subject("administrator") }.authorities(SimpleGrantedAuthority("ROLE_ADMIN"))),
             ).andExpect(status().isForbidden)
         assertThat(forbidden.response.contentType).startsWith(MediaType.APPLICATION_PROBLEM_JSON_VALUE)
-        assertThat(forbidden.response.contentAsString).contains("\"status\":403")
+        assertThat(forbidden.response.contentAsString)
+            .contains("\"title\":\"Forbidden\"")
+            .contains("\"status\":403")
     }
 
     @Test
