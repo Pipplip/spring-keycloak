@@ -2,7 +2,7 @@
 
 ## Planned Features
 
-- [] FEAT-001: E-mail notifications for booking status changes and invoices.
+- [] FEAT-001: E-mail notifications for booking status changes and invoice lifecycle events. Invoice notifications were deferred from PLAN-007; provider selection, recipients, delivery/retry handling, and duplicate prevention remain to be decided.
 - [] FEAT-002: Responsive Angular customer and administrator application.
 
 ## Technical Improvements

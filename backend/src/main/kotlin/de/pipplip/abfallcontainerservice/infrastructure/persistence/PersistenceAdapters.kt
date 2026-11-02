@@ -17,6 +17,7 @@ import de.pipplip.abfallcontainerservice.domain.model.ContainerType
 import de.pipplip.abfallcontainerservice.domain.model.Customer
 import de.pipplip.abfallcontainerservice.domain.model.Invoice
 import de.pipplip.abfallcontainerservice.domain.model.InvoiceLine
+import de.pipplip.abfallcontainerservice.domain.model.InvoiceStatus
 import jakarta.persistence.EntityManager
 import jakarta.persistence.LockModeType
 import jakarta.persistence.criteria.CriteriaBuilder
@@ -25,6 +26,7 @@ import jakarta.persistence.criteria.Root
 import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
+import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.data.jpa.repository.JpaRepository
@@ -164,6 +166,30 @@ interface AssignmentCountProjection {
 interface InvoiceJpaRepository : JpaRepository<InvoiceJpaEntity, UUID> {
     @EntityGraph(attributePaths = ["booking", "lines"])
     fun findByBooking_Id(bookingId: UUID): InvoiceJpaEntity?
+
+    @EntityGraph(attributePaths = ["booking", "lines"])
+    @Query("select i from InvoiceJpaEntity i where i.id = :id")
+    fun findWithBookingAndLinesById(@Param("id") id: UUID): InvoiceJpaEntity?
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select i from InvoiceJpaEntity i where i.id = :id")
+    fun findByIdForUpdate(@Param("id") id: UUID): InvoiceJpaEntity?
+
+    @EntityGraph(attributePaths = ["booking", "lines"])
+    @Query("select i from InvoiceJpaEntity i where i.id in :ids")
+    fun findWithBookingAndLinesByIdIn(@Param("ids") ids: Collection<UUID>): List<InvoiceJpaEntity>
+
+    @Query(
+        """
+        select i.id from InvoiceJpaEntity i
+        where (:status is null or i.status = :status)
+        order by i.createdAt desc, i.id asc
+        """,
+    )
+    fun findIdsByStatus(
+        @Param("status") status: InvoiceStatus?,
+        pageable: org.springframework.data.domain.Pageable,
+    ): Page<UUID>
 }
 
 @Component
@@ -547,15 +573,52 @@ class InvoicePersistenceAdapter(
                 lines = mutableListOf(),
             )
         entity.lines.addAll(invoice.lines.map { it.toJpa(entity) })
-        return repository.save(entity).toDomain()
+        return repository.saveAndFlush(entity).toDomain()
     }
 
     @Transactional(readOnly = true)
-    override fun findById(id: UUID): Invoice? = repository.findById(id).orElse(null)?.toDomain()
+    override fun findById(id: UUID): Invoice? = repository.findWithBookingAndLinesById(id)?.toDomain()
+
+    @Transactional(readOnly = true)
+    override fun findByIdForUpdate(id: UUID): Invoice? =
+        repository.findByIdForUpdate(id)?.toDomain()
 
     @Transactional(readOnly = true)
     override fun findByBookingId(bookingId: UUID): Invoice? =
         repository.findByBooking_Id(bookingId)?.toDomain()
+
+    @Transactional(readOnly = true)
+    override fun findPage(
+        status: InvoiceStatus?,
+        page: Int,
+        size: Int,
+    ): PageResult<Invoice> {
+        val idPage = repository.findIdsByStatus(status, PageRequest.of(page, size))
+        val invoicesById =
+            if (idPage.content.isEmpty()) {
+                emptyMap()
+            } else {
+                repository.findWithBookingAndLinesByIdIn(idPage.content).associateBy { it.id }
+            }
+        return PageResult(
+            items = idPage.content.map { id -> requireNotNull(invoicesById[id]).toDomain() },
+            page = idPage.number,
+            size = idPage.size,
+            totalElements = idPage.totalElements,
+        )
+    }
+
+    override fun nextInvoiceNumberSequenceValue(): Long =
+        (entityManager.createNativeQuery("select nextval('invoice_number_seq')").singleResult as Number).toLong()
+
+    override fun updateStatus(
+        id: UUID,
+        status: InvoiceStatus,
+    ): Invoice? {
+        val entity = repository.findByIdForUpdate(id) ?: return null
+        entity.status = status
+        return repository.saveAndFlush(entity).toDomain()
+    }
 }
 
 private fun containerPredicates(

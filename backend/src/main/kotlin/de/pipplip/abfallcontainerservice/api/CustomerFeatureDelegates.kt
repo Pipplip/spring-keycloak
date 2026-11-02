@@ -2,6 +2,7 @@ package de.pipplip.abfallcontainerservice.api
 
 import de.pipplip.abfallcontainerservice.application.port.out.PageResult
 import de.pipplip.abfallcontainerservice.application.service.AvailabilityService
+import de.pipplip.abfallcontainerservice.application.service.AdminInvoiceService
 import de.pipplip.abfallcontainerservice.application.service.BookingAssignmentCountService
 import de.pipplip.abfallcontainerservice.application.service.ContainerCatalogueService
 import de.pipplip.abfallcontainerservice.application.service.CustomerBookingCancellationService
@@ -12,6 +13,7 @@ import de.pipplip.abfallcontainerservice.domain.model.Address as DomainAddress
 import de.pipplip.abfallcontainerservice.domain.model.Booking as DomainBooking
 import de.pipplip.abfallcontainerservice.domain.model.ContainerType as DomainContainerType
 import de.pipplip.abfallcontainerservice.domain.model.Invoice as DomainInvoice
+import de.pipplip.abfallcontainerservice.domain.model.InvoiceStatus as DomainInvoiceStatus
 import de.pipplip.abfallcontainerservice.generated.api.AvailabilityApiDelegate
 import de.pipplip.abfallcontainerservice.generated.api.BookingsApiDelegate
 import de.pipplip.abfallcontainerservice.generated.api.CatalogueApiDelegate
@@ -24,6 +26,8 @@ import de.pipplip.abfallcontainerservice.generated.model.ContainerType as ApiCon
 import de.pipplip.abfallcontainerservice.generated.model.ContainerTypePage as ApiContainerTypePage
 import de.pipplip.abfallcontainerservice.generated.model.Invoice as ApiInvoice
 import de.pipplip.abfallcontainerservice.generated.model.InvoiceLine as ApiInvoiceLine
+import de.pipplip.abfallcontainerservice.generated.model.InvoicePage as ApiInvoicePage
+import de.pipplip.abfallcontainerservice.generated.model.InvoiceStatus as ApiInvoiceStatus
 import de.pipplip.abfallcontainerservice.generated.model.PageMetadata as ApiPageMetadata
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -139,9 +143,45 @@ class BookingsApiDelegateImpl(
 @Service
 class InvoicesApiDelegateImpl(
     private val invoiceQueryService: CustomerInvoiceQueryService,
+    private val adminInvoiceService: AdminInvoiceService,
 ) : InvoicesApiDelegate {
     override fun getMyBookingInvoice(bookingId: java.util.UUID): ResponseEntity<ApiInvoice> =
         ResponseEntity.ok(invoiceQueryService.getMyBookingInvoice(bookingId).toApi())
+
+    override fun createAdminInvoiceForBooking(bookingId: java.util.UUID): ResponseEntity<ApiInvoice> =
+        ResponseEntity.status(HttpStatus.CREATED)
+            .body(adminInvoiceService.createForBooking(bookingId).toApi())
+
+    override fun getAdminInvoice(invoiceId: java.util.UUID): ResponseEntity<ApiInvoice> =
+        ResponseEntity.ok(adminInvoiceService.get(invoiceId).toApi())
+
+    override fun listAdminInvoices(
+        page: Int,
+        size: Int,
+        status: ApiInvoiceStatus?,
+    ): ResponseEntity<ApiInvoicePage> {
+        val result =
+            adminInvoiceService.list(
+                status = status?.let { DomainInvoiceStatus.valueOf(it.name) },
+                page = page,
+                size = size,
+            )
+        return ResponseEntity.ok(
+            ApiInvoicePage(
+                items = result.items.map { it.toApi() },
+                page = result.toApiMetadata(),
+            ),
+        )
+    }
+
+    override fun markAdminInvoicePaid(invoiceId: java.util.UUID): ResponseEntity<ApiInvoice> =
+        ResponseEntity.ok(adminInvoiceService.transition(invoiceId, DomainInvoiceStatus.PAID).toApi())
+
+    override fun sendAdminInvoice(invoiceId: java.util.UUID): ResponseEntity<ApiInvoice> =
+        ResponseEntity.ok(adminInvoiceService.transition(invoiceId, DomainInvoiceStatus.SENT).toApi())
+
+    override fun voidAdminInvoice(invoiceId: java.util.UUID): ResponseEntity<ApiInvoice> =
+        ResponseEntity.ok(adminInvoiceService.transition(invoiceId, DomainInvoiceStatus.VOID).toApi())
 }
 
 internal fun DomainContainerType.toApi() =

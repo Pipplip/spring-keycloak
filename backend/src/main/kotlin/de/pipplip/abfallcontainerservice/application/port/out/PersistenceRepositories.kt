@@ -7,6 +7,7 @@ import de.pipplip.abfallcontainerservice.domain.model.ContainerType
 import de.pipplip.abfallcontainerservice.domain.model.ContainerStatus
 import de.pipplip.abfallcontainerservice.domain.model.Customer
 import de.pipplip.abfallcontainerservice.domain.model.Invoice
+import de.pipplip.abfallcontainerservice.domain.model.InvoiceStatus
 import de.pipplip.abfallcontainerservice.domain.model.BookingStatus
 import java.time.LocalDate
 import java.util.UUID
@@ -127,5 +128,13 @@ interface InvoiceRepository {
 
     fun findById(id: UUID): Invoice?
 
+    fun findByIdForUpdate(id: UUID): Invoice?
+
     fun findByBookingId(bookingId: UUID): Invoice?
+
+    fun findPage(status: InvoiceStatus?, page: Int, size: Int): PageResult<Invoice>
+
+    fun nextInvoiceNumberSequenceValue(): Long
+
+    fun updateStatus(id: UUID, status: InvoiceStatus): Invoice?
 }

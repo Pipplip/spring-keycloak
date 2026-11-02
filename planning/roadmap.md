@@ -42,11 +42,11 @@
 - [x] Customer administration (approved addition)
 
 ## Phase 7: Invoicing
-- [ ] Invoice creation
-- [ ] Invoice calculation
-- [ ] Invoice status
-- [ ] Invoice retrieval
-- [ ] Email notifications
+- [x] Invoice creation
+- [x] Invoice calculation
+- [x] Invoice status
+- [x] Invoice retrieval and administration
+- [ ] Email notifications (deferred to FEAT-001 in the backlog)
 
 ## Phase 8: Hardening
 - [ ] Validation

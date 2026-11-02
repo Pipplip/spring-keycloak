@@ -3,8 +3,9 @@ info:
   title: Abfallcontainer-Service API
   version: 1.0.0
   description: |
-    API contract for customer and administrator operations. This contract does
-    not define invoice timing, tax policy, or payment-provider behavior.
+    API contract for customer and administrator operations. Invoice creation
+    and VAT calculation follow the initial policies in the business rules.
+    Payment is manually managed; invoice email notifications are deferred.
 tags:
   - name: Catalogue
     description: Public container type catalogue.
@@ -225,7 +226,7 @@ paths:
         - Invoices
       operationId: getMyBookingInvoice
       summary: Retrieve the invoice associated with a booking
-      description: Requires the USER role and booking ownership. Returns an existing invoice; invoice creation timing is not defined by this contract.
+      description: Requires the USER role and booking ownership. Returns an existing invoice.
       security:
         - bearerAuth: []
       parameters:
@@ -840,8 +841,11 @@ paths:
       operationId: createAdminInvoiceForBooking
       summary: Create an invoice for a booking
       description: |
-        Requires the ADMIN role. Invoice eligibility, timing, and calculation
-        rules are intentionally deferred and are not defined by this contract.
+        Requires the ADMIN role. Creates one DRAFT invoice for a booking in
+        PENDING or CONFIRMED status. Creation fails with 409 if the booking is
+        ineligible or already has an invoice. Amounts use the stored booking
+        price snapshot, requested quantity, half-open rental days, and the
+        initial 19% VAT policy.
       security:
         - bearerAuth: []
       parameters:
@@ -875,6 +879,58 @@ paths:
       responses:
         '200':
           description: Invoice marked as paid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/admin/invoices/{invoiceId}/send:
+    post:
+      tags:
+        - Invoices
+      operationId: sendAdminInvoice
+      summary: Mark a draft invoice as sent
+      description: Requires the ADMIN role. Transitions a DRAFT invoice to SENT; invoice email notification is deferred.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/InvoiceId'
+      responses:
+        '200':
+          description: Invoice marked as sent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/admin/invoices/{invoiceId}/void:
+    post:
+      tags:
+        - Invoices
+      operationId: voidAdminInvoice
+      summary: Void a draft invoice
+      description: Requires the ADMIN role. Transitions a DRAFT invoice to VOID.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/InvoiceId'
+      responses:
+        '200':
+          description: Invoice marked as void.
           content:
             application/json:
               schema:
@@ -1362,7 +1418,7 @@ components:
           exclusiveMinimum: true
           minimum: 0
           multipleOf: 0.001
-          description: Invoice-line quantity, stored to three decimal places.
+          description: Invoice-line quantity (container-days), stored to three decimal places.
         unitPriceCents:
           type: integer
           format: int64
@@ -1374,12 +1430,12 @@ components:
           minimum: 0
           maximum: 1
           multipleOf: 0.0001
-          description: Tax rate as a fraction from 0 to 1, stored to four decimal places; tax policy is not defined by this API.
+          description: Tax rate as a fraction from 0 to 1, stored to four decimal places; the initial invoice policy uses 0.1900.
         totalCents:
           type: integer
           format: int64
           minimum: 0
-          description: Line total expressed as an integer number of cents.
+          description: Net line total expressed as an integer number of cents.
     Invoice:
       type: object
       required:
@@ -1406,14 +1462,17 @@ components:
           type: integer
           format: int64
           minimum: 0
+          description: Sum of net invoice-line amounts, in integer cents.
         taxAmountCents:
           type: integer
           format: int64
           minimum: 0
+          description: Sum of VAT amounts rounded per invoice line, in integer cents.
         grossAmountCents:
           type: integer
           format: int64
           minimum: 0
+          description: Net amount plus VAT, in integer cents.
         currencyCode:
           type: string
           pattern: '^[A-Z]{3}$'

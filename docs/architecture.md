@@ -170,6 +170,9 @@ The backend sends emails for:
 - Booking confirmation.
 - Booking cancellation.
 
+Invoice lifecycle notifications are deferred to FEAT-001 in the planning
+backlog and are not sent by the invoicing milestone.
+
 The email provider is still to be selected.
 
 ## 9. Docker and Deployment

@@ -68,14 +68,21 @@ Administrators manage customers, inventory, bookings and invoices.
   assignment count visible on the booking response.
 
 ### FR-007: Invoicing
-- Create invoices for bookings.
-- Calculate invoice amounts.
-- Track invoice status.
-- Manually mark invoices as paid.
+- Administrators can create one invoice for a PENDING or CONFIRMED booking.
+- Calculate invoice amounts from the booking's persisted daily-price snapshot,
+  requested quantity, and half-open rental period.
+- Apply the initial 19% VAT policy to the net rental charge, rounding VAT to
+  whole cents per line using HALF_UP. This initial policy requires tax-adviser
+  confirmation before production use.
+- Track invoice status through DRAFT, SENT, PAID, and VOID.
+- Manually mark SENT invoices as paid.
+- Customers can retrieve only invoices associated with their own bookings.
 
 ### FR-008: Notifications
 - Send booking confirmation emails.
 - Send cancellation emails.
+- Invoice lifecycle email notifications are deferred to FEAT-001 in the
+  planning backlog.
 
 ### FR-009: Frontend
 - Provide a responsive Angular single-page application for customer and
@@ -110,8 +117,8 @@ Administrators manage customers, inventory, bookings and invoices.
 ## 5. Open Questions
 
 - Which payment provider should be integrated?
-- Which VAT rules apply?
-- When should invoices be generated?
+- A tax adviser must confirm that the initial German-standard-rate VAT policy
+  applies to the service and customer cases before production use.
 - Should invoice PDFs be generated?
 
 Open questions must not be resolved

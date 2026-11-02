@@ -68,7 +68,7 @@ whose `releasedAt` is null; it is not stored on the booking record.
 
 - id: UUID
 - bookingId: UUID
-- invoiceNumber: String (unique)
+- invoiceNumber: String (unique; `YYYY-######`, global non-resetting sequence)
 - netAmountCents: Long (BIGINT, non-negative integer minor units)
 - taxAmountCents: Long (BIGINT, non-negative integer minor units)
 - grossAmountCents: Long (BIGINT, non-negative integer minor units)
@@ -81,7 +81,7 @@ whose `releasedAt` is null; it is not stored on the booking record.
 - id: UUID
 - invoiceId: UUID
 - description: String
-- quantity: Decimal (NUMERIC(12,3), greater than 0)
+- quantity: Decimal (NUMERIC(12,3), greater than 0; rental container-days)
 - unitPriceCents: Long (BIGINT, non-negative integer minor units)
 - taxRate: Decimal (NUMERIC(5,4), fraction from 0 to 1)
 - totalCents: Long (BIGINT, non-negative integer minor units)
@@ -117,3 +117,6 @@ whose `releasedAt` is null; it is not stored on the booking record.
   alongside the amount. The API uses `*Cents` fields for those values.
 - Invoice-line quantities use three decimal places; tax rates are fractional
   values in the inclusive range 0 to 1 with four decimal places.
+- Invoice line `totalCents` stores the net line amount. The invoice tax amount
+  is the sum of line VAT amounts rounded to whole cents using HALF_UP; gross
+  amount equals net plus tax.

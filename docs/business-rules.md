@@ -42,10 +42,13 @@ Booking statuses:
 ## 5. Pricing
 
 Base calculation:
-Daily price × rental days.
+Daily price × requested quantity × rental days. Rental days are the number of
+days between delivery (included) and pickup (excluded).
 
-There is no delivery fee or cancellation fee. Applicable VAT remains subject
-to the approved tax policy.
+There is no delivery fee or cancellation fee. The initial invoice policy
+applies 19% VAT to the net rental charge. VAT is rounded per invoice line to
+whole cents using HALF_UP. This initial policy requires tax-adviser
+confirmation before production use.
 
 Historical prices must remain unchanged
 after a booking has been created.
@@ -66,9 +69,24 @@ Invoice statuses:
 - VOID
 
 - Every invoice has a unique invoice number.
+- Invoice numbers use `YYYY-######`, with a global, non-resetting PostgreSQL
+  sequence for the numeric portion; gaps are permitted.
+- An administrator may create one invoice for a booking only while the booking
+  is PENDING or CONFIRMED. An ineligible booking or an existing invoice results
+  in a conflict.
+- Invoice calculation uses the booking's persisted daily-price snapshot and
+  creates one rental line. The line quantity is requested container quantity
+  multiplied by half-open rental days, and `totalCents` is the net line amount.
+- Invoice totals are net line totals, per-line rounded VAT totals, and their
+  sum, respectively.
 - Invoice lines are stored separately.
 - Invoice totals must be reproducible.
 - Payment is initially managed manually.
+- Allowed administrator transitions are DRAFT to SENT or VOID, and SENT to
+  PAID. PAID and VOID are terminal states.
+- Invoice email notifications are deferred to FEAT-001 in the planning
+  backlog; creating or changing invoice status sends no email in this
+  milestone.
 - PDF generation is a future enhancement.
 
 ## 8. Administrator Management

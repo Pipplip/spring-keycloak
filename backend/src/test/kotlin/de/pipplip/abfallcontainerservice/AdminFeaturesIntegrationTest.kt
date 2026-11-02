@@ -8,6 +8,8 @@ import de.pipplip.abfallcontainerservice.application.port.out.ContainerTypeRepos
 import de.pipplip.abfallcontainerservice.application.port.out.CustomerRepository
 import de.pipplip.abfallcontainerservice.application.port.out.InvoiceRepository
 import de.pipplip.abfallcontainerservice.application.service.AdminContainerAssignmentService
+import de.pipplip.abfallcontainerservice.application.service.AdminConflictException
+import de.pipplip.abfallcontainerservice.application.service.AdminInvoiceService
 import de.pipplip.abfallcontainerservice.domain.model.Address
 import de.pipplip.abfallcontainerservice.domain.model.Booking
 import de.pipplip.abfallcontainerservice.domain.model.BookingStatus
@@ -80,6 +82,9 @@ class AdminFeaturesIntegrationTest {
 
     @Autowired
     private lateinit var adminAssignmentService: AdminContainerAssignmentService
+
+    @Autowired
+    private lateinit var adminInvoiceService: AdminInvoiceService
 
     @BeforeEach
     fun clearDatabase() {
@@ -473,6 +478,151 @@ class AdminFeaturesIntegrationTest {
                 .content("""{"status":"CANCELLED"}"""),
         ).andExpect(status().isOk)
         assertThat(assignmentRepository.findById(confirmedAssignment.id)?.releasedAt).isNotNull
+    }
+
+    @Test
+    fun `admin creates retrieves filters and transitions invoices`() {
+        val customer = saveCustomer()
+        val type = saveType()
+        val booking =
+            saveBooking(
+                customer.id,
+                type.id,
+                deliveryDate = todayPlus(5),
+                pickupDate = todayPlus(8),
+                quantity = 2,
+            )
+
+        val createResponse =
+            mockMvc.perform(
+                post("/api/v1/admin/bookings/${booking.id}/invoice").with(adminToken()),
+            ).andExpect(status().isCreated)
+                .andExpect(jsonPath("$.bookingId").value(booking.id.toString()))
+                .andExpect(jsonPath("$.netAmountCents").value(15000))
+                .andExpect(jsonPath("$.taxAmountCents").value(2850))
+                .andExpect(jsonPath("$.grossAmountCents").value(17850))
+                .andExpect(jsonPath("$.status").value("DRAFT"))
+                .andExpect(jsonPath("$.lines.length()").value(1))
+                .andExpect(jsonPath("$.lines[0].quantity").value(6.0))
+                .andExpect(jsonPath("$.lines[0].unitPriceCents").value(2500))
+                .andExpect(jsonPath("$.lines[0].taxRate").value(0.19))
+                .andExpect(jsonPath("$.lines[0].totalCents").value(15000))
+                .andReturn()
+        val invoiceJson = objectMapper.readTree(createResponse.response.contentAsString)
+        val invoiceId = UUID.fromString(invoiceJson.get("id").asText())
+        assertThat(invoiceJson.get("invoiceNumber").asText()).matches("\\d{4}-\\d{6,}")
+
+        mockMvc.perform(
+            post("/api/v1/admin/bookings/${booking.id}/invoice").with(adminToken()),
+        ).andExpect(status().isConflict)
+
+        mockMvc.perform(
+            get("/api/v1/admin/invoices")
+                .with(adminToken())
+                .param("status", "DRAFT"),
+        ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.items.length()").value(1))
+            .andExpect(jsonPath("$.items[0].id").value(invoiceId.toString()))
+            .andExpect(jsonPath("$.page.totalElements").value(1))
+
+        mockMvc.perform(get("/api/v1/admin/invoices/$invoiceId").with(adminToken()))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.lines.length()").value(1))
+
+        mockMvc.perform(
+            get("/api/v1/admin/invoices").with(userToken(customer.keycloakSubject)),
+        ).andExpect(status().isForbidden)
+
+        mockMvc.perform(get("/api/v1/admin/invoices"))
+            .andExpect(status().isUnauthorized)
+
+        mockMvc.perform(
+            post("/api/v1/admin/invoices/$invoiceId/mark-paid").with(adminToken()),
+        ).andExpect(status().isConflict)
+
+        mockMvc.perform(
+            post("/api/v1/admin/invoices/$invoiceId/send").with(adminToken()),
+        ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.status").value("SENT"))
+
+        mockMvc.perform(
+            post("/api/v1/admin/invoices/$invoiceId/mark-paid").with(adminToken()),
+        ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.status").value("PAID"))
+
+        mockMvc.perform(
+            post("/api/v1/admin/invoices/$invoiceId/mark-paid").with(adminToken()),
+        ).andExpect(status().isConflict)
+
+        mockMvc.perform(
+            post("/api/v1/admin/invoices/$invoiceId/void").with(adminToken()),
+        ).andExpect(status().isConflict)
+
+        val voidableBooking = saveBooking(customer.id, type.id)
+        val voidableInvoice =
+            adminInvoiceService.createForBooking(voidableBooking.id)
+        mockMvc.perform(
+            post("/api/v1/admin/invoices/${voidableInvoice.id}/void").with(adminToken()),
+        ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.status").value("VOID"))
+
+        mockMvc.perform(
+            post("/api/v1/admin/invoices/${voidableInvoice.id}/send").with(adminToken()),
+        ).andExpect(status().isConflict)
+
+        val cancelled = saveBooking(customer.id, type.id, status = BookingStatus.CANCELLED)
+        mockMvc.perform(
+            post("/api/v1/admin/bookings/${cancelled.id}/invoice").with(adminToken()),
+        ).andExpect(status().isConflict)
+
+        mockMvc.perform(
+            post("/api/v1/admin/bookings/${UUID.randomUUID()}/invoice").with(adminToken()),
+        ).andExpect(status().isNotFound)
+    }
+
+    @Test
+    fun `concurrent invoice creation preserves one per booking and unique invoice numbers`() {
+        val customer = saveCustomer()
+        val type = saveType()
+        val duplicateBooking = saveBooking(customer.id, type.id)
+        val start = CountDownLatch(1)
+        val executor = Executors.newFixedThreadPool(4)
+        try {
+            val duplicateAttempts =
+                (1..4).map {
+                    executor.submit<Boolean> {
+                        start.await()
+                        try {
+                            adminInvoiceService.createForBooking(duplicateBooking.id)
+                            true
+                        } catch (_: AdminConflictException) {
+                            false
+                        }
+                    }
+                }
+            start.countDown()
+
+            assertThat(duplicateAttempts.map { it.get() }.count { it }).isEqualTo(1)
+            assertThat(invoiceRepository.findByBookingId(duplicateBooking.id)).isNotNull
+
+            val independentBookings = (1..3).map { saveBooking(customer.id, type.id) }
+            val numberStart = CountDownLatch(1)
+            val numberAttempts =
+                independentBookings.map { booking ->
+                    executor.submit<Invoice> {
+                        numberStart.await()
+                        adminInvoiceService.createForBooking(booking.id)
+                    }
+                }
+            numberStart.countDown()
+            val invoices = numberAttempts.map { it.get() }
+
+            assertThat(invoices.map { it.invoiceNumber }.toSet()).hasSize(3)
+            assertThat(invoices.map { it.invoiceNumber }.all { it.matches("\\d{4}-\\d{6,}".toRegex()) })
+                .isTrue()
+        } finally {
+            executor.shutdownNow()
+        }
     }
 
     @Test

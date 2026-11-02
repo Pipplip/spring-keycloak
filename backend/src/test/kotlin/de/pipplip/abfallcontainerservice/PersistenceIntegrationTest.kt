@@ -139,14 +139,14 @@ class PersistenceIntegrationTest {
                 ),
             )
         }.isInstanceOf(DataIntegrityViolationException::class.java)
-        assertThat(flyway.info().applied().map { it.version?.version }).containsExactly("1", "2")
+        assertThat(flyway.info().applied().map { it.version?.version }).containsExactly("1", "2", "3")
         assertThat(flyway.migrate().migrationsExecuted).isZero()
         assertThat(
             requireNotNull(jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM flyway_schema_history WHERE version IN ('1', '2') AND success",
+                "SELECT count(*) FROM flyway_schema_history WHERE version IN ('1', '2', '3') AND success",
                 Int::class.javaObjectType,
             )),
-        ).isEqualTo(2)
+        ).isEqualTo(3)
         assertThat(
             requireNotNull(jdbcTemplate.queryForObject(
                 """

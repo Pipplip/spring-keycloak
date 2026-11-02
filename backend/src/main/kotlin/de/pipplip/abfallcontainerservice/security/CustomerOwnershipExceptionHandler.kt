@@ -70,8 +70,8 @@ class CustomerOwnershipExceptionHandler {
         BookingConflictException::class,
         AdminConflictException::class,
     )
-    fun bookingConflict(): ResponseEntity<ProblemDetail> =
-        problem(HttpStatus.CONFLICT, "The booking cannot be completed in the current state.")
+    fun conflict(): ResponseEntity<ProblemDetail> =
+        problem(HttpStatus.CONFLICT, "The requested operation cannot be completed in the current state.")
 
     private fun problem(
         status: HttpStatus,
