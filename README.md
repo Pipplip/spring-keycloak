@@ -14,13 +14,16 @@ Struktur für AI Agent:
 ├─── prompts/
 ├─────── plan-feature.prompt.md      # Prompt für Copilot: Implementierungsplan erstellen
 ├─────── implement-feature.prompt.md # Prompt für Copilot: Implementierungsplan umsetzen
+├─────── review-code.prompt.md       # Prompt für Copilot: Code review durchführen
 ├─ docs/                             # Projekt-Dokumentation (README, TODO, Architektur, ...)
-├─── requirements/                   # Was soll das System machen (User Stories, Use Cases, ...)
-├─── architecture/                   # Architektur-Dokumentation (Architekturdiagramme, ...)
-├─── data-model/                     # Datenmodell (ER-Diagramme, Tabellen, Entitäten, ...)
-├─── business-rules/                 # Geschäftsregeln (z. B. Buchungsregeln, Preisberechnung, ...)
+├─── requirements.md                 # Was soll das System machen (User Stories, Use Cases, ...)
+├─── architecture.md                 # Architektur-Dokumentation (Architekturdiagramme, ...)
+├─── data-model.md                   # Datenmodell (ER-Diagramme, Tabellen, Entitäten, ...)
+├─── business-rules.md               # Geschäftsregeln (z. B. Buchungsregeln, Preisberechnung, ...)
 ├─ planning/                         # Implementierungsplan (von Copilot generiert, basierend auf Anforderungen, Architektur und Projektanweisungen)
 ├─── roadmap.md                      # Roadmap (Meilensteine, Zeitplan, ...)
+├─── backlog.md                      # Backlog (offene Aufgaben, Features, Bugs, ...)
+├─────── plans/                      # Automatisch generierte Implementierungspläne (PLAN-001, PLAN-002, ...)
 ```
 
 Entwicklungsprozess für Copilot:  
@@ -45,6 +48,11 @@ Prüfe und ändere `PLAN-001-project-setup.md` und setze den Status auf `APPROVE
 Implementierung starten:
 ```Prompt
 Use the prompt implement-feature.prompt.md to implement the approved implementation plan PLAN-001-project-setup.md.
+```
+
+Code Review durchführen:
+```Prompt
+Use the prompt review-code.prompt.md to perform a code review of the implementation of PLAN-001-project-setup.md.
 ```
 
 Danach geht es weiter mit dem nächsten Meilenstein aus der `roadmap.md`

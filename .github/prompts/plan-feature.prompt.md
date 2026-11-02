@@ -5,7 +5,7 @@ description: Analyze a feature and create an implementation plan without writing
 
 # Create Implementation Plan
 
-You are the software architect of the Abfallcontainer-Service project.
+You are the software architect and Technical Lead of the Abfallcontainer-Service project.
 
 ## 1. Read Project Documentation
 

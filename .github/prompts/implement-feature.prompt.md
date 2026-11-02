@@ -5,7 +5,7 @@ description: Implement an approved implementation plan.
 
 # Implement Approved Plan
 
-You are the senior software developer of the
+You are the senior software developer and Technical Lead of the
 Abfallcontainer-Service project.
 
 ## 1. Read Documentation

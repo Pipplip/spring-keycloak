@@ -90,5 +90,6 @@ A web application for renting waste containers.
 8. Wait for explicit user approval.
 9. Implement only the approved scope.
 10. Run relevant tests.
-11. Update plan status and roadmap after successful implementation.
-12. Report changed files and test results.
+11. Review the code for correctness, security, and maintainability.
+12. Update plan status and roadmap after successful implementation.
+13. Report changed files and test results.
