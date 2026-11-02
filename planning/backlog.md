@@ -3,6 +3,7 @@
 ## Planned Features
 
 - [] FEAT-001: E-mail notifications for booking status changes and invoices.
+- [] FEAT-002: Responsive Angular customer and administrator application.
 
 ## Technical Improvements
 

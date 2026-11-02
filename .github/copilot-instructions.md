@@ -65,12 +65,38 @@ A web application for renting waste containers.
 - Validate incoming requests.
 - Keep API models separate from persistence entities.
 
+## Angular Frontend
+- Build the browser application with Angular standalone components, strict
+  TypeScript/template checking, and lazy-loaded feature routes.
+- Use npm with a committed lockfile and a supported, pinned Node.js LTS
+  version; use `npm ci` for reproducible installs.
+- Use Angular Material as the single UI component library; keep layouts
+  responsive, semantic, keyboard accessible, and visually consistent, with
+  WCAG 2.2 AA as the accessibility target.
+- Use the generated TypeScript Angular client for backend calls. Never edit
+  generated sources or duplicate API endpoints and server business rules.
+- Keep components focused on presentation; centralize authentication,
+  API-client configuration, and cross-cutting error handling.
+- Use typed reactive forms for user input, with explicit validation and
+  loading, empty, success, and error states.
+- Use Keycloak Authorization Code Flow with PKCE as a public client. Never
+  embed client secrets or store bearer/refresh tokens in browser web storage.
+- Attach bearer tokens only to requests for the configured backend API origin.
+  Frontend role guards are navigation UX only; the backend enforces
+  authorization and customer ownership.
+- Prefer local component state/Angular signals and RxJS over adding global
+  state-management libraries without a demonstrated need.
+- Test components, API behavior, accessibility-critical interactions, and
+  USER/ADMIN navigation.
+
 ## Testing
 - Use JUnit 5 and MockK.
 - Use Testcontainers for integration tests.
 - Write unit tests for business logic.
 - Write integration tests for persistence and APIs.
 - Test security and ownership restrictions.
+- Use Angular's test tooling for frontend unit/component tests and cover core
+  browser workflows with end-to-end tests.
 - Run relevant tests after implementation.
 
 ## Documentation

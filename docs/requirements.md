@@ -78,14 +78,30 @@ Administrators manage customers, inventory, bookings and invoices.
 - Send cancellation emails.
 
 ### FR-009: Frontend
-- Angular SPA
-- Customer and administrator interfaces.
-- JWT-based authentication.
+- Provide a responsive Angular single-page application for customer and
+  administrator workflows.
+- Customers can browse active container types, check availability, create and
+  view their own bookings, cancel eligible bookings, and retrieve associated
+  invoices.
+- Administrators can manage bookings, container types, physical containers,
+  customers, and invoices through the existing API.
+- Authenticate with the existing Keycloak realm using OpenID Connect
+  Authorization Code Flow with PKCE. The browser application is a public
+  client and must not contain a client secret.
+- Show clear loading, empty, validation, success, and API error states. Render
+  API Problem Details as user-safe messages without exposing internal details.
+- Provide keyboard-operable controls, semantic markup, visible focus, and
+  layouts that work on mobile and desktop.
 
 ## 4. Non-Functional Requirements
 
 - Secure authentication and authorization.
 - REST API.
+- The frontend consumes the API contract and does not access PostgreSQL
+  directly.
+- The backend remains authoritative for authorization and customer ownership;
+  frontend route guards are a usability measure, not a security boundary.
+- Target WCAG 2.2 AA for the customer and administrator interfaces.
 - Maintainable architecture.
 - Automated testing.
 - Docker-based deployment.

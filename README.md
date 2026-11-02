@@ -157,9 +157,27 @@ Unter Bash verwendest du `./gradlew` mit denselben Gradle-Tasks.
 `validateAngularOpenApiOutput` prueft die erwarteten Angular-Services und Modelle;
 `test` kompiliert auch die generierten Kotlin-Schnittstellen. Die Ausgaben liegen unter
 `backend/build/generated/openapi/kotlin-spring/` und
-`frontend/build/generated/openapi/typescript-angular/`. Es wird kein Angular-
-Projekt angelegt; der Client wird bis zur Einrichtung des Frontends strukturell
-validiert.
+`frontend/build/generated/openapi/typescript-angular/`. Es wird noch kein
+Angular-Anwendungsprojekt angelegt; derzeit wird nur der Client strukturell
+validiert. Die geplante Angular-Anwendung ist in Phase 9 der
+`planning/roadmap.md` vorgesehen. Ihre Architektur- und Sicherheitsvorgaben
+stehen in `docs/architecture.md`; sie soll den generierten Client verwenden
+und keine API-Modelle oder Endpunkte manuell duplizieren.
+
+## Geplante Angular-Anwendung
+
+Die Anwendung wird als responsive Angular-SPA für Kunden und Administratoren
+umgesetzt. Sie verwendet Standalone-Komponenten, lazy-loaded Feature-Routen,
+strikte TypeScript-Prüfungen und Angular Material als einzige UI-Komponenten-
+Bibliothek. Die Anwendung nutzt den bestehenden Keycloak Public Client mit
+Authorization Code Flow + PKCE. Zugangstoken werden nicht in Browser-
+Webspeichern abgelegt; UI-Rollenprüfungen ersetzen niemals die Autorisierung
+des Backends.
+
+Das Angular-Projekt und seine konkreten Start-, Test- und Build-Befehle werden
+mit der Umsetzung des Frontend-Meilensteins angelegt und hier anschließend
+ergänzt. Bis dahin beziehen sich die oben genannten Gradle-Aufgaben nur auf
+die OpenAPI-Clientgenerierung und -validierung.
 
 ## Datenbankmigrationen und Persistenztests
 

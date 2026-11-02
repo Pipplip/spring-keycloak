@@ -55,7 +55,17 @@
 - [ ] Pagination
 - [ ] Extended tests
 
-## Phase 9: Deployment
+## Phase 9: Frontend
+- [ ] Angular project
+- [ ] Responsive shared layout and accessible component theme
+- [ ] Keycloak login and role-aware navigation
+- [ ] Integrate generated OpenAPI client
+- [ ] Customer UI
+- [ ] Admin UI
+- [ ] API error/loading states and frontend tests
+- [ ] Integration with backend
+
+## Phase 10: Deployment
 - [ ] Dockerfile
 - [ ] Complete Docker Compose
 - [ ] Health checks

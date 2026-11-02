@@ -94,10 +94,67 @@ Local Keycloak security configuration:
 
 Frontend:
 - Angular SPA.
-- Public Keycloak client.
-- Authorization Code Flow with PKCE.
+- Public Keycloak client `abfallcontainer-frontend`.
+- Authorization Code Flow with PKCE (S256).
+- Do not embed a client secret or persist access/refresh tokens in
+  `localStorage` or `sessionStorage`.
+- UI role guards improve navigation only. The API remains responsible for all
+  authorization and customer ownership decisions.
 
-## 6. Database Architecture
+## 6. Frontend Application
+
+- Create a conventional Angular CLI application under `frontend/`; use
+  standalone components, strict TypeScript/template checking, and lazy-loaded
+  feature routes. Keep the application deliberately small: avoid NgRx or other
+  global state frameworks until a demonstrated need exists; use Angular
+  signals for local view state and RxJS for asynchronous API operations.
+- Use npm with a committed lockfile for reproducible installs; pin a supported
+  Node.js LTS version compatible with the selected Angular CLI in the
+  frontend toolchain configuration and use `npm ci` in CI.
+- Use Angular Material as the single component library for accessible forms,
+  navigation, tables, dialogs, and status indicators. Apply a small shared
+  theme and responsive layout rather than introducing a second design system
+  or a custom component framework.
+- Organize code by responsibility: `core` for authentication, API
+  configuration, and app-wide error handling; `features` for customer and
+  administrator routes; and `shared` for reusable presentational components
+  and formatting utilities. Keep feature components focused on rendering and
+  user interaction.
+- Use the generated TypeScript Angular client from `openapi/api.yaml` for
+  backend calls and API models. Generate it with the existing Gradle task;
+  never edit generated files by hand. Keep generated output outside
+  hand-maintained source files and configure the API base URL per environment.
+- Centralize authenticated API access in the HTTP client/interceptor
+  integration. Attach a Keycloak access token only to requests to the
+  configured backend API origin; do not leak bearer tokens to unrelated
+  origins. Keep API calls out of templates and avoid duplicating endpoint
+  definitions or server-side business rules in the browser.
+- Configure OIDC through the existing Keycloak public client with Authorization
+  Code Flow + PKCE. Keep tokens in memory under the OIDC adapter's management,
+  use the adapter's refresh lifecycle, and send users through the normal
+  authorization flow rather than collecting or handling passwords in the app.
+- Use route guards to direct unauthenticated users to login and to hide
+  irrelevant USER/ADMIN navigation. These checks are only UX; backend
+  authorization and ownership checks remain mandatory.
+- Provide customer routes for the catalogue, availability, booking creation,
+  own bookings, and booking invoice retrieval. Provide an administrator area
+  for booking, container type, container, customer, and invoice management.
+  Reuse existing API operations and statuses; do not introduce frontend-only
+  business behavior.
+- Use typed reactive forms for data entry, inline field validation, confirmation
+  for consequential actions, and explicit loading/empty/error/success states.
+  Translate RFC 7807 Problem Details into clear user messages while keeping
+  diagnostic details out of the UI.
+- Build semantic, responsive pages with keyboard support, visible focus,
+  labels, adequate contrast, and accessible status text. Prefer shared
+  responsive navigation, simple forms, cards, and data tables over a
+  dashboard-heavy design. Target WCAG 2.2 AA.
+- Test feature components and services with Angular's testing utilities,
+  including API error/loading states, auth integration, and role-based
+  navigation. Add browser-level coverage for the core customer and
+  administrator flows when the frontend milestone is implemented.
+
+## 7. Database Architecture
 
 - PostgreSQL.
 - Spring Data JPA.
@@ -107,7 +164,7 @@ Frontend:
 - Optimistic locking where appropriate.
 - Prevent overlapping container assignments.
 
-## 7. Email Integration
+## 8. Email Integration
 
 The backend sends emails for:
 - Booking confirmation.
@@ -115,7 +172,7 @@ The backend sends emails for:
 
 The email provider is still to be selected.
 
-## 8. Docker and Deployment
+## 9. Docker and Deployment
 
 - Multi-stage Dockerfile.
 - JDK 25 build environment.
@@ -136,7 +193,7 @@ and Spring profiles.
 
 Production secrets must never be committed.
 
-## 9. Health and Monitoring
+## 10. Health and Monitoring
 
 Use Spring Boot Actuator.
 
@@ -145,7 +202,7 @@ Provide:
 - Liveness.
 - Readiness.
 
-## 10. Future CI/CD
+## 11. Future CI/CD
 
 - Build.
 - Unit tests.
