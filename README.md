@@ -76,16 +76,15 @@ der Container werden JDK und Node.js auf dem Host nicht benötigt.
    Unter Bash/macOS/Linux: `cp .env.example .env`. Die Datei `.env` ist
    ignoriert und wird nicht versioniert.
 
-2. Starte Backend, Frontend, PostgreSQL und Keycloak:
+2. Starte den vollständigen Entwicklungsstack mit einem Compose-Befehl:
 
    ```powershell
-   docker compose --profile app up -d --wait
-   docker compose --profile app ps
+   docker compose --profile app --profile keycloak-bootstrap up -d --wait
+   docker compose --profile app --profile keycloak-bootstrap ps
    ```
 
    Beim ersten Start werden Images geladen, der API-Client generiert und
    Frontend-Abhängigkeiten installiert. Das kann einige Minuten dauern.
-   Ohne `--profile app` startet Compose nur PostgreSQL und Keycloak.
 
 3. Rufe die Anwendung auf:
 
@@ -94,22 +93,16 @@ der Container werden JDK und Node.js auf dem Host nicht benötigt.
    - Keycloak: <http://localhost:8081>
 
    Keycloak importiert beim Start den Realm `abfallcontainer-realm` mit den
-   Clients und Rollen `USER` und `ADMIN`. Optional kannst du den lokalen
-   Anwendungsadministrator anlegen:
-
-   ```powershell
-   docker compose --profile keycloak-bootstrap run --rm keycloak-admin-init
-   ```
-
-   Benutzername und Passwort des Anwendungsadministrators stehen in `.env`
-   unter `ABFALLCONTAINER_ADMIN_USERNAME` und
-   `ABFALLCONTAINER_ADMIN_PASSWORD`. Sie sind unabhängig von den Zugangsdaten
+   Clients und Rollen `USER` und `ADMIN`. Der lokale Anwendungsadministrator
+   wird beim Compose-Start automatisch angelegt. Benutzername und Passwort
+   stehen in `.env` unter `ABFALLCONTAINER_ADMIN_USERNAME` und
+   `ABFALLCONTAINER_ADMIN_PASSWORD`; sie sind unabhängig von den Zugangsdaten
    für die Keycloak-Administration.
 
 4. Zeige bei Bedarf die Logs an:
 
    ```powershell
-   docker compose --profile app logs -f backend frontend
+   docker compose --profile app --profile keycloak-bootstrap logs -f backend frontend
    ```
 
    Beende die Loganzeige mit `Ctrl+C`. Stoppe danach die Umgebung:
@@ -124,10 +117,11 @@ der Container werden JDK und Node.js auf dem Host nicht benötigt.
 ### Backend und Frontend lokal starten
 
 Wenn Backend und Angular nicht in Entwicklungscontainern laufen sollen,
-starte zunächst `.env` wie oben beschrieben und dann PostgreSQL und Keycloak:
+starte zunächst `.env` wie oben beschrieben und dann nur PostgreSQL und
+Keycloak:
 
 ```powershell
-docker compose up -d --wait
+docker compose --profile keycloak-bootstrap up -d --wait postgres keycloak keycloak-admin-init
 ```
 
 Benötigt werden JDK 25 sowie Node.js 22.23.4 und npm 10.9.9. Starte Backend und

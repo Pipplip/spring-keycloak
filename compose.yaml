@@ -65,10 +65,10 @@ services:
       - ./docker/keycloak/bootstrap:/opt/keycloak/bootstrap:ro
     depends_on:
       keycloak:
-        condition: service_started
+        condition: service_healthy
 
   backend:
-    image: amazoncorretto:25
+    image: eclipse-temurin:25-jdk-alpine
     profiles: ["app"]
     working_dir: /workspace/backend
     command:
@@ -96,8 +96,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      keycloak:
-        condition: service_started
+      keycloak-admin-init:
+        condition: service_completed_successfully
 
   frontend:
     image: node:22.23.4
