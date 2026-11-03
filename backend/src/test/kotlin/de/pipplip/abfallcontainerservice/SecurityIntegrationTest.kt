@@ -32,6 +32,8 @@ import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.header
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.slf4j.LoggerFactory
 import org.testcontainers.containers.PostgreSQLContainer
@@ -60,6 +62,25 @@ class SecurityIntegrationTest {
     fun `public catalogue route permits anonymous requests`() {
         mockMvc.perform(get("/api/v1/container-types"))
             .andExpect(status().isOk)
+    }
+
+    @Test
+    fun `CORS permits only the configured local frontend origin`() {
+        mockMvc.perform(
+            options("/api/v1/container-types")
+                .header("Origin", "http://localhost:4200")
+                .header("Access-Control-Request-Method", "GET")
+                .header("Access-Control-Request-Headers", "authorization"),
+        )
+            .andExpect(status().isOk)
+            .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:4200"))
+            .andExpect(header().doesNotExist("Access-Control-Allow-Credentials"))
+
+        mockMvc.perform(
+            options("/api/v1/container-types")
+                .header("Origin", "https://unrelated.example.test")
+                .header("Access-Control-Request-Method", "GET"),
+        ).andExpect(status().isForbidden)
     }
 
     @Test

@@ -1,0 +1,128 @@
+<section aria-labelledby="booking-title">
+  <h1 class="page-heading" id="booking-title">Check availability and book</h1>
+  <p class="page-intro">Availability is confirmed by the service when your booking is submitted.</p>
+
+  <mat-card appearance="outlined">
+    <mat-card-content>
+      @if (error()) {
+        <p class="status-message error-message" role="alert">{{ error() }}</p>
+      }
+      @if (success()) {
+        <p class="status-message" role="status">
+          {{ success() }} <a routerLink="/bookings">View your bookings</a>.
+        </p>
+      }
+
+      <form [formGroup]="form" (ngSubmit)="createBooking()" novalidate>
+        <div class="form-grid">
+          <mat-form-field>
+            <mat-label>Container type</mat-label>
+            <mat-select formControlName="containerTypeId" required>
+              @for (type of types(); track type.id) {
+                <mat-option [value]="type.id">{{ type.name }} — {{ type.volumeM3 }} m³</mat-option>
+              }
+            </mat-select>
+            @if (
+              form.controls.containerTypeId.hasError('required') &&
+              form.controls.containerTypeId.touched
+            ) {
+              <mat-error>Select a container type.</mat-error>
+            }
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>Quantity</mat-label>
+            <input matInput type="number" min="1" step="1" formControlName="quantity" required />
+            @if (form.controls.quantity.invalid && form.controls.quantity.touched) {
+              <mat-error>Enter at least one container.</mat-error>
+            }
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>Delivery date</mat-label>
+            <input matInput type="date" formControlName="deliveryDate" required />
+            @if (form.controls.deliveryDate.invalid && form.controls.deliveryDate.touched) {
+              <mat-error>Choose a delivery date.</mat-error>
+            }
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>Pickup date</mat-label>
+            <input matInput type="date" formControlName="pickupDate" required />
+            @if (form.controls.pickupDate.invalid && form.controls.pickupDate.touched) {
+              <mat-error>Choose a pickup date after delivery.</mat-error>
+            }
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>Street</mat-label>
+            <input matInput formControlName="street" autocomplete="street-address" required />
+            @if (form.controls.street.invalid && form.controls.street.touched) {
+              <mat-error>Enter a street.</mat-error>
+            }
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>House number</mat-label>
+            <input matInput formControlName="houseNumber" required />
+            @if (form.controls.houseNumber.invalid && form.controls.houseNumber.touched) {
+              <mat-error>Enter a house number.</mat-error>
+            }
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>Postal code</mat-label>
+            <input matInput formControlName="postalCode" autocomplete="postal-code" required />
+            @if (form.controls.postalCode.invalid && form.controls.postalCode.touched) {
+              <mat-error>Enter a postal code.</mat-error>
+            }
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>City</mat-label>
+            <input matInput formControlName="city" autocomplete="address-level2" required />
+            @if (form.controls.city.invalid && form.controls.city.touched) {
+              <mat-error>Enter a city.</mat-error>
+            }
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>Country code</mat-label>
+            <input
+              matInput
+              formControlName="countryCode"
+              maxlength="2"
+              autocomplete="country"
+              required
+            />
+            @if (form.controls.countryCode.invalid && form.controls.countryCode.touched) {
+              <mat-error>Enter a two-letter country code.</mat-error>
+            }
+          </mat-form-field>
+        </div>
+
+        <div class="form-actions">
+          <button
+            mat-stroked-button
+            type="button"
+            [disabled]="checking()"
+            (click)="checkAvailability()"
+          >
+            {{ checking() ? 'Checking…' : 'Check availability' }}
+          </button>
+          <button
+            mat-flat-button
+            type="submit"
+            [disabled]="loading() || !availability()?.available"
+          >
+            {{ loading() ? 'Submitting…' : 'Create booking' }}
+          </button>
+        </div>
+      </form>
+
+      @if (availability(); as result) {
+        <p class="status-message" role="status">
+          @if (result.available) {
+            The requested quantity is currently available. Availability is checked again by the
+            service when you submit.
+          } @else {
+            The requested quantity is not available for these dates. Try different dates or
+            quantity.
+          }
+        </p>
+      }
+    </mat-card-content>
+  </mat-card>
+</section>

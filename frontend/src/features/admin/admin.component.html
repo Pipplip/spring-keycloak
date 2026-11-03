@@ -1,0 +1,525 @@
+<section aria-labelledby="admin-title">
+  <h1 class="page-heading" id="admin-title">Administration</h1>
+  <p class="page-intro">
+    Manage bookings, inventory, customer profiles and invoices. The service validates every change.
+  </p>
+
+  @if (error()) {
+    <p class="status-message error-message" role="alert">{{ error() }}</p>
+  }
+  @if (success()) {
+    <p class="status-message" role="status">{{ success() }}</p>
+  }
+  @if (loading()) {
+    <p role="status" aria-live="polite">Loading or saving…</p>
+  }
+
+  <mat-tab-group
+    animationDuration="0ms"
+    aria-label="Administration sections"
+    (selectedTabChange)="selectSection($event.index)"
+  >
+    <mat-tab label="Bookings">
+      <section class="tab-content" aria-label="Booking management">
+        <div class="toolbar-actions">
+          <button mat-stroked-button type="button" [disabled]="loading()" (click)="load()">
+            Refresh bookings
+          </button>
+        </div>
+        @if (bookings().length === 0 && !loading()) {
+          <p class="empty-state" role="status">No bookings found.</p>
+        } @else {
+          <div class="table-wrap">
+            <table>
+              <caption>
+                Bookings and current status
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Booking</th>
+                  <th scope="col">Dates</th>
+                  <th scope="col">Quantity</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (booking of bookings(); track booking.id) {
+                  <tr>
+                    <td>
+                      <span [title]="booking.id">{{ booking.id.slice(0, 8) }}</span>
+                    </td>
+                    <td>{{ booking.deliveryDate }} – {{ booking.pickupDate }}</td>
+                    <td>
+                      {{ booking.quantity }} requested /
+                      {{ booking.assignedContainerCount }} assigned
+                    </td>
+                    <td>{{ booking.status }}</td>
+                    <td>
+                      <div class="toolbar-actions">
+                        <button mat-button type="button" (click)="viewBooking(booking.id)">
+                          View details
+                        </button>
+                        <mat-form-field subscriptSizing="dynamic">
+                          <mat-label>New status</mat-label>
+                          <mat-select
+                            [value]="booking.status"
+                            [attr.aria-label]="'Change status for booking ' + booking.id"
+                            (selectionChange)="changeBookingStatus(booking, $event.value)"
+                          >
+                            @for (status of bookingStatuses; track status) {
+                              <mat-option [value]="status">{{ status }}</mat-option>
+                            }
+                          </mat-select>
+                        </mat-form-field>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+        @if (bookingDetail(); as detail) {
+          <mat-card appearance="outlined">
+            <mat-card-header>
+              <mat-card-title>Booking details</mat-card-title>
+              <mat-card-subtitle>{{ detail.id }} · {{ detail.status }}</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content>
+              <p>Customer ID: {{ detail.customerId }}</p>
+              <p>Container type ID: {{ detail.containerTypeId }}</p>
+              <p>Delivery: {{ detail.deliveryDate }}; pickup: {{ detail.pickupDate }}</p>
+              <p>Requested: {{ detail.quantity }}; assigned: {{ detail.assignedContainerCount }}</p>
+              <p>Daily price snapshot: {{ money(detail.dailyPriceCents, detail.currencyCode) }}</p>
+              <p>
+                Delivery address: {{ detail.deliveryAddress.street }}
+                {{ detail.deliveryAddress.houseNumber }}, {{ detail.deliveryAddress.postalCode }}
+                {{ detail.deliveryAddress.city }}
+              </p>
+            </mat-card-content>
+          </mat-card>
+        }
+
+        <mat-card appearance="outlined" class="assignment-card">
+          <mat-card-header>
+            <mat-card-title>Container assignments</mat-card-title>
+            <mat-card-subtitle
+              >Enter IDs from the service. Assignment eligibility is validated by the
+              API.</mat-card-subtitle
+            >
+          </mat-card-header>
+          <mat-card-content>
+            <form [formGroup]="assignmentForm" (ngSubmit)="loadAssignments()" novalidate>
+              <div class="form-grid">
+                <mat-form-field>
+                  <mat-label>Booking ID</mat-label>
+                  <input matInput formControlName="bookingId" required />
+                </mat-form-field>
+                <mat-form-field>
+                  <mat-label>Container ID (to assign)</mat-label>
+                  <input matInput formControlName="containerId" />
+                </mat-form-field>
+              </div>
+              <div class="form-actions">
+                <button mat-stroked-button type="submit" [disabled]="loading()">
+                  View assignments
+                </button>
+                <button
+                  mat-flat-button
+                  type="button"
+                  [disabled]="loading()"
+                  (click)="assignContainer()"
+                >
+                  Assign container
+                </button>
+              </div>
+            </form>
+            @if (assignmentsBookingId()) {
+              @if (assignments().length === 0) {
+                <p class="empty-state" role="status">No assignments for this booking.</p>
+              } @else {
+                <div class="table-wrap">
+                  <table>
+                    <caption>
+                      Assignments for booking
+                      {{
+                        assignmentsBookingId()
+                      }}
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Assignment</th>
+                        <th scope="col">Container</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (assignment of assignments(); track assignment.id) {
+                        <tr>
+                          <td>{{ assignment.id }}</td>
+                          <td>{{ assignment.containerId }}</td>
+                          <td>{{ assignment.releasedAt ? 'Released' : 'Active' }}</td>
+                          <td>
+                            @if (!assignment.releasedAt) {
+                              <button
+                                mat-button
+                                type="button"
+                                (click)="releaseAssignment(assignment.id)"
+                              >
+                                Release
+                              </button>
+                            }
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              }
+            }
+          </mat-card-content>
+        </mat-card>
+      </section>
+    </mat-tab>
+
+    <mat-tab label="Container types">
+      <section class="tab-content" aria-label="Container type management">
+        <mat-card appearance="outlined">
+          <mat-card-header>
+            <mat-card-title>{{
+              selectedTypeId() ? 'Edit container type' : 'Create container type'
+            }}</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <form [formGroup]="typeForm" (ngSubmit)="saveType()" novalidate>
+              <div class="form-grid">
+                <mat-form-field>
+                  <mat-label>Name</mat-label>
+                  <input matInput formControlName="name" required />
+                </mat-form-field>
+                <mat-form-field>
+                  <mat-label>Description</mat-label>
+                  <input matInput formControlName="description" required />
+                </mat-form-field>
+                <mat-form-field>
+                  <mat-label>Volume (m³)</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    formControlName="volumeM3"
+                    required
+                  />
+                </mat-form-field>
+                <mat-form-field>
+                  <mat-label>Daily price (cents)</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    min="0"
+                    formControlName="dailyPriceCents"
+                    required
+                  />
+                </mat-form-field>
+                <mat-form-field>
+                  <mat-label>Currency code</mat-label>
+                  <input matInput maxlength="3" formControlName="currencyCode" required />
+                </mat-form-field>
+                <mat-form-field>
+                  <mat-label>Active</mat-label>
+                  <mat-select formControlName="active">
+                    <mat-option [value]="true">Active</mat-option>
+                    <mat-option [value]="false">Inactive</mat-option>
+                  </mat-select>
+                </mat-form-field>
+              </div>
+              <div class="form-actions">
+                <button mat-flat-button type="submit" [disabled]="loading()">
+                  {{ selectedTypeId() ? 'Save changes' : 'Create type' }}
+                </button>
+                @if (selectedTypeId()) {
+                  <button mat-button type="button" (click)="selectedTypeId.set('')">
+                    Cancel edit
+                  </button>
+                }
+              </div>
+            </form>
+          </mat-card-content>
+        </mat-card>
+        <div class="table-wrap">
+          <table>
+            <caption>
+              Container types
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Volume</th>
+                <th scope="col">Daily price</th>
+                <th scope="col">Active</th>
+                <th scope="col">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (type of types(); track type.id) {
+                <tr>
+                  <td>{{ type.name }}</td>
+                  <td>{{ type.volumeM3 }} m³</td>
+                  <td>{{ money(type.dailyPriceCents, type.currencyCode) }}</td>
+                  <td>{{ type.active ? 'Yes' : 'No' }}</td>
+                  <td><button mat-button type="button" (click)="editType(type)">Edit</button></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          @if (!types().length && !loading()) {
+            <p class="empty-state" role="status">No container types found.</p>
+          }
+        </div>
+      </section>
+    </mat-tab>
+
+    <mat-tab label="Containers">
+      <section class="tab-content" aria-label="Physical container management">
+        <mat-card appearance="outlined">
+          <mat-card-header>
+            <mat-card-title>{{
+              selectedContainerId() ? 'Edit physical container' : 'Add physical container'
+            }}</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <form [formGroup]="containerForm" (ngSubmit)="saveContainer()" novalidate>
+              <div class="form-grid">
+                <mat-form-field>
+                  <mat-label>Inventory number</mat-label>
+                  <input matInput formControlName="inventoryNumber" required />
+                </mat-form-field>
+                <mat-form-field>
+                  <mat-label>Container type</mat-label>
+                  <mat-select formControlName="containerTypeId" required>
+                    @for (type of types(); track type.id) {
+                      <mat-option [value]="type.id">{{ type.name }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field>
+                  <mat-label>Status</mat-label>
+                  <mat-select formControlName="status" required>
+                    @for (status of containerStatuses; track status) {
+                      <mat-option [value]="status">{{ status }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              </div>
+              <div class="form-actions">
+                <button mat-flat-button type="submit" [disabled]="loading()">
+                  {{ selectedContainerId() ? 'Save changes' : 'Add container' }}
+                </button>
+                @if (selectedContainerId()) {
+                  <button mat-button type="button" (click)="selectedContainerId.set('')">
+                    Cancel edit
+                  </button>
+                }
+              </div>
+            </form>
+          </mat-card-content>
+        </mat-card>
+        <div class="table-wrap">
+          <table>
+            <caption>
+              Physical containers
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Inventory number</th>
+                <th scope="col">Type ID</th>
+                <th scope="col">Status</th>
+                <th scope="col">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (container of containers(); track container.id) {
+                <tr>
+                  <td>{{ container.inventoryNumber }}</td>
+                  <td>{{ container.containerTypeId }}</td>
+                  <td>{{ container.status }}</td>
+                  <td>
+                    <button mat-button type="button" (click)="editContainer(container)">
+                      Edit
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          @if (!containers().length && !loading()) {
+            <p class="empty-state" role="status">No containers found.</p>
+          }
+        </div>
+      </section>
+    </mat-tab>
+
+    <mat-tab label="Customers">
+      <section class="tab-content" aria-label="Customer management">
+        <div class="table-wrap">
+          <table>
+            <caption>
+              Customers
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Customer</th>
+                <th scope="col">Email</th>
+                <th scope="col">Company</th>
+                <th scope="col">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (customer of customers(); track customer.id) {
+                <tr>
+                  <td>{{ customer.firstName }} {{ customer.lastName }}</td>
+                  <td>{{ customer.email }}</td>
+                  <td>{{ customer.companyName || '—' }}</td>
+                  <td>
+                    <button mat-button type="button" (click)="editCustomer(customer)">Edit</button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          @if (!customers().length && !loading()) {
+            <p class="empty-state" role="status">No customers found.</p>
+          }
+        </div>
+        @if (selectedCustomerId()) {
+          <mat-card appearance="outlined">
+            <mat-card-header
+              ><mat-card-title>Edit customer profile</mat-card-title></mat-card-header
+            >
+            <mat-card-content>
+              <form [formGroup]="customerForm" (ngSubmit)="updateCustomer()" novalidate>
+                <div class="form-grid">
+                  <mat-form-field
+                    ><mat-label>Email</mat-label
+                    ><input matInput type="email" formControlName="email" required
+                  /></mat-form-field>
+                  <mat-form-field
+                    ><mat-label>First name</mat-label
+                    ><input matInput formControlName="firstName" required
+                  /></mat-form-field>
+                  <mat-form-field
+                    ><mat-label>Last name</mat-label
+                    ><input matInput formControlName="lastName" required
+                  /></mat-form-field>
+                  <mat-form-field
+                    ><mat-label>Company name</mat-label
+                    ><input matInput formControlName="companyName"
+                  /></mat-form-field>
+                  <mat-form-field
+                    ><mat-label>Street</mat-label><input matInput formControlName="street" required
+                  /></mat-form-field>
+                  <mat-form-field
+                    ><mat-label>House number</mat-label
+                    ><input matInput formControlName="houseNumber" required
+                  /></mat-form-field>
+                  <mat-form-field
+                    ><mat-label>Postal code</mat-label
+                    ><input matInput formControlName="postalCode" required
+                  /></mat-form-field>
+                  <mat-form-field
+                    ><mat-label>City</mat-label><input matInput formControlName="city" required
+                  /></mat-form-field>
+                  <mat-form-field
+                    ><mat-label>Country code</mat-label
+                    ><input matInput formControlName="countryCode" maxlength="2" required
+                  /></mat-form-field>
+                </div>
+                <div class="form-actions">
+                  <button mat-flat-button type="submit" [disabled]="loading()">
+                    Save customer
+                  </button>
+                  <button mat-button type="button" (click)="selectedCustomerId.set('')">
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </mat-card-content>
+          </mat-card>
+        }
+      </section>
+    </mat-tab>
+
+    <mat-tab label="Invoices">
+      <section class="tab-content" aria-label="Invoice management">
+        <mat-card appearance="outlined">
+          <mat-card-header>
+            <mat-card-title>Create invoice</mat-card-title>
+            <mat-card-subtitle
+              >The service validates booking eligibility and calculates all
+              amounts.</mat-card-subtitle
+            >
+          </mat-card-header>
+          <mat-card-content>
+            <form [formGroup]="invoiceBookingForm" (ngSubmit)="createInvoice()" novalidate>
+              <div class="form-grid">
+                <mat-form-field>
+                  <mat-label>Booking ID</mat-label>
+                  <input matInput formControlName="bookingId" required />
+                </mat-form-field>
+              </div>
+              <button mat-flat-button type="submit" [disabled]="loading()">Create invoice</button>
+            </form>
+          </mat-card-content>
+        </mat-card>
+        <div class="content-grid">
+          @for (invoice of invoices(); track invoice.id) {
+            <mat-card appearance="outlined">
+              <mat-card-header>
+                <mat-card-title>Invoice {{ invoice.invoiceNumber }}</mat-card-title>
+                <mat-card-subtitle
+                  >{{ invoice.status }} · Booking {{ invoice.bookingId }}</mat-card-subtitle
+                >
+              </mat-card-header>
+              <mat-card-content>
+                <p>Net: {{ money(invoice.netAmountCents, invoice.currencyCode) }}</p>
+                <p>Tax: {{ money(invoice.taxAmountCents, invoice.currencyCode) }}</p>
+                <p>
+                  <strong
+                    >Total: {{ money(invoice.grossAmountCents, invoice.currencyCode) }}</strong
+                  >
+                </p>
+                @for (line of invoice.lines; track line.id) {
+                  <p>
+                    {{ line.description }} · {{ line.quantity }} ·
+                    {{ money(line.totalCents, invoice.currencyCode) }} net
+                  </p>
+                }
+              </mat-card-content>
+              <mat-card-actions>
+                @if (invoice.status === 'DRAFT') {
+                  <button mat-button type="button" (click)="invoiceAction(invoice, 'send')">
+                    Mark sent
+                  </button>
+                  <button mat-button type="button" (click)="invoiceAction(invoice, 'void')">
+                    Void
+                  </button>
+                }
+                @if (invoice.status === 'SENT') {
+                  <button mat-button type="button" (click)="invoiceAction(invoice, 'paid')">
+                    Mark paid
+                  </button>
+                }
+              </mat-card-actions>
+            </mat-card>
+          }
+        </div>
+        @if (!invoices().length && !loading()) {
+          <p class="empty-state" role="status">No invoices found.</p>
+        }
+      </section>
+    </mat-tab>
+  </mat-tab-group>
+</section>

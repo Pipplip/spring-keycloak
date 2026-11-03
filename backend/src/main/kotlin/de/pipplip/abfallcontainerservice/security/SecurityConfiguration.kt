@@ -15,6 +15,9 @@ import org.springframework.security.oauth2.jwt.JwtValidators
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter
 import org.springframework.security.web.SecurityFilterChain
+import org.springframework.web.cors.CorsConfiguration
+import org.springframework.web.cors.CorsConfigurationSource
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 import org.springframework.security.web.access.AccessDeniedHandler
 import org.springframework.security.web.AuthenticationEntryPoint
 import org.springframework.security.authorization.AuthorizationDecision
@@ -50,6 +53,23 @@ class SecurityConfiguration(
     }
 
     @Bean
+    fun corsConfigurationSource(
+        @Value("\${frontend.allowed-origin:http://localhost:4200}")
+        allowedOrigin: String,
+    ): CorsConfigurationSource {
+        val cors =
+            CorsConfiguration().apply {
+                allowedOrigins = listOf(allowedOrigin)
+                allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "OPTIONS")
+                allowedHeaders = listOf("Authorization", "Content-Type", "Accept")
+                allowCredentials = false
+            }
+        return UrlBasedCorsConfigurationSource().apply {
+            registerCorsConfiguration("/api/v1/**", cors)
+        }
+    }
+
+    @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
         val jwtAuthenticationConverter =
             JwtAuthenticationConverter().apply {
@@ -57,6 +77,7 @@ class SecurityConfiguration(
             }
 
         http
+            .cors { }
             .csrf { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .exceptionHandling {

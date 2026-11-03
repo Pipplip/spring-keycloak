@@ -1,0 +1,43 @@
+<section aria-labelledby="catalogue-title">
+  <h1 class="page-heading" id="catalogue-title">Container catalogue</h1>
+  <p class="page-intro">Browse container types and their daily rental prices.</p>
+
+  @if (loading()) {
+    <p role="status" aria-live="polite">Loading container types…</p>
+  }
+  @if (error()) {
+    <p class="status-message error-message" role="alert">{{ error() }}</p>
+    <button mat-stroked-button type="button" (click)="load(page())">Try again</button>
+  }
+  @if (!loading() && !error() && types().length === 0) {
+    <p class="empty-state" role="status">No container types are available at the moment.</p>
+  }
+
+  <div class="content-grid">
+    @for (type of types(); track type.id) {
+      <mat-card appearance="outlined">
+        <mat-card-header>
+          <mat-card-title>{{ type.name }}</mat-card-title>
+          <mat-card-subtitle>{{ type.volumeM3 }} m³</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <p>{{ type.description }}</p>
+          <p>
+            <strong>{{ price(type) }}</strong> per container, per day
+          </p>
+        </mat-card-content>
+        <mat-card-actions>
+          <a mat-button [routerLink]="['/catalogue', type.id]">View details</a>
+          <a mat-flat-button [routerLink]="['/book']" [queryParams]="{ containerTypeId: type.id }">
+            Check availability
+          </a>
+        </mat-card-actions>
+      </mat-card>
+    }
+  </div>
+  @if (hasMore()) {
+    <div class="form-actions">
+      <button mat-stroked-button type="button" (click)="load(page() + 1)">Load more</button>
+    </div>
+  }
+</section>

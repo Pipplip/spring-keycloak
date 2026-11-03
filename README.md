@@ -128,6 +128,20 @@ Voraussetzungen: JDK 25, Docker mit Docker Compose v2 oder neuer und eine Shell.
 
    Unter Bash verwendest du `COMPOSE_DATABASE_TEST=true ./gradlew test`.
 
+   Alternativ kannst du Backend und Angular-Entwicklungsserver zusammen mit
+   PostgreSQL und Keycloak über das optionale Compose-Profil `app` starten:
+
+   ```powershell
+   docker compose --profile app up -d --wait
+   ```
+
+   Das Profil verwendet die lokalen Quellcode-Mounts und startet Gradle sowie
+   `npm ci` in den Entwicklungscontainern. Der Backend-Service generiert den
+   Angular-Client vor dem Start; das Frontend wartet auf diese Build-Ausgabe.
+   Die Standardausführung `docker compose up` bleibt auf PostgreSQL und
+   Keycloak beschränkt. Frontend und API sind dann unter `localhost:4200` und
+   `localhost:8080` erreichbar.
+
 5. Stoppe die Services, wenn du fertig bist:
 
    ```powershell
@@ -158,12 +172,11 @@ Unter Bash verwendest du `./gradlew` mit denselben Gradle-Tasks.
 `validateAngularOpenApiOutput` prueft die erwarteten Angular-Services und Modelle;
 `test` kompiliert auch die generierten Kotlin-Schnittstellen. Die Ausgaben liegen unter
 `backend/build/generated/openapi/kotlin-spring/` und
-`frontend/build/generated/openapi/typescript-angular/`. Es wird noch kein
-Angular-Anwendungsprojekt angelegt; derzeit wird nur der Client strukturell
-validiert. Die geplante Angular-Anwendung ist in Phase 9 der
-`planning/roadmap.md` vorgesehen. Ihre Architektur- und Sicherheitsvorgaben
-stehen in `docs/architecture.md`; sie soll den generierten Client verwenden
-und keine API-Modelle oder Endpunkte manuell duplizieren.
+`frontend/build/generated/openapi/typescript-angular/`. Die Angular-Anwendung
+verwendet diesen Client direkt; generierte Dateien bleiben Build-Ausgabe und
+werden nicht manuell bearbeitet. Die npm-Befehle `start`, `build` und `test`
+führen die Clientgenerierung und -validierung automatisch über den Backend-
+Gradle-Wrapper aus.
 
 API-Fehler verwenden RFC-7807-Problem-Details mit dem Medientyp
 `application/problem+json`. Unerwartete Serverfehler liefern einen generischen
@@ -172,20 +185,74 @@ ausgegeben. Paginierte Endpunkte verwenden nullbasierte Seiten (`page >= 0`)
 und Seitengroessen von 1 bis 100. Listen sind deterministisch sortiert, damit
 benachbarte Seiten bei gleichen Zeitstempeln stabil bleiben.
 
-## Geplante Angular-Anwendung
+## Angular-Frontend
 
-Die Anwendung wird als responsive Angular-SPA für Kunden und Administratoren
-umgesetzt. Sie verwendet Standalone-Komponenten, lazy-loaded Feature-Routen,
-strikte TypeScript-Prüfungen und Angular Material als einzige UI-Komponenten-
-Bibliothek. Die Anwendung nutzt den bestehenden Keycloak Public Client mit
-Authorization Code Flow + PKCE. Zugangstoken werden nicht in Browser-
-Webspeichern abgelegt; UI-Rollenprüfungen ersetzen niemals die Autorisierung
-des Backends.
+Die SPA benötigt Node.js 22.23.4 und npm 10.9.9 (Versionen stehen in
+`frontend/.nvmrc`, `frontend/.node-version` und `frontend/package.json`).
+Angular-Abhängigkeiten sind exakt versioniert und `package-lock.json` ist
+eingecheckt. Installiere und starte die Anwendung aus `frontend/`:
 
-Das Angular-Projekt und seine konkreten Start-, Test- und Build-Befehle werden
-mit der Umsetzung des Frontend-Meilensteins angelegt und hier anschließend
-ergänzt. Bis dahin beziehen sich die oben genannten Gradle-Aufgaben nur auf
-die OpenAPI-Clientgenerierung und -validierung.
+```powershell
+Set-Location frontend
+npm.cmd ci
+npm.cmd start
+```
+
+Unter Bash verwende `cd frontend`, `npm ci` und `npm start`. Angular läuft
+standardmäßig unter `http://localhost:4200`. Die Anwendung enthält Kunden-
+und Admin-Oberflächen mit Standalone-Komponenten, lazy-loaded Routen, typed
+reactive forms und Angular Material. Keycloak verwendet den öffentlichen
+Client `abfallcontainer-frontend` mit Authorization Code Flow + PKCE; das
+Frontend enthält kein Client-Geheimnis und legt Tokens nicht in Browser-
+Webspeichern ab.
+
+Lokale Konfiguration:
+
+- API: `http://localhost:8080` (Spring Boot)
+- Keycloak: `http://localhost:8081`, Realm `abfallcontainer-realm`
+- erlaubter Browser-Origin für die API: `http://localhost:4200`
+
+Die öffentlichen Frontend-Werte liegen in
+`frontend/src/environments/environment.ts`. Für einen Produktions-Build sind
+die öffentlichen API- und Keycloak-URLs in
+`frontend/src/environments/environment.prod.ts` auf die eigene Umgebung zu
+setzen; diese Dateien dürfen keine Secrets enthalten. Der Backend-CORS-Origin
+kann mit `FRONTEND_ALLOWED_ORIGIN` gesetzt werden. Standardmäßig sind nur
+`http://localhost:4200` und die API-Pfade unter `/api/v1/**` erlaubt. Die API
+bleibt die Autorisierungs- und Ownership-Grenze.
+
+Führe die Frontend-Prüfungen aus:
+
+```powershell
+npm.cmd run lint
+npm.cmd test
+npm.cmd run build
+```
+
+`npm.cmd run test:e2e` startet Playwright und erwartet eine laufende lokale
+PostgreSQL-/Keycloak-/Backend-Umgebung sowie einen installierten Chromium-
+Browser (`npx.cmd playwright install chromium`). Der öffentliche Katalogtest
+verifiziert die API-Verbindung. Für die authentifizierten Browser-Workflows
+müssen die lokal vorbereiteten Keycloak-Testkonten und vorhandene Inventardaten
+über Umgebungsvariablen bereitgestellt werden; sie werden nicht versioniert:
+
+```powershell
+$env:E2E_USER_USERNAME = "<test-user>"
+$env:E2E_USER_PASSWORD = "<test-user-password>"
+$env:E2E_ADMIN_USERNAME = "<test-admin>"
+$env:E2E_ADMIN_PASSWORD = "<test-admin-password>"
+npm.cmd run test:e2e
+```
+
+Ohne die jeweiligen Kontodaten weist Playwright diese Tests mit einem
+konkreten Hinweis als übersprungen aus. Der USER benötigt ein lokal angelegtes
+Kundenprofil; für die Buchungsreise muss außerdem für den Testzeitraum
+Inventar verfügbar sein.
+
+Compose startet standardmäßig nur PostgreSQL und Keycloak. Für den lokalen
+Entwicklungsbetrieb sind Backend und Angular optional über
+`docker compose --profile app up -d --wait` verfügbar. Produktionscontainer
+und Deployment bleiben Teil der späteren Deployment-Phase.
 
 ## Datenbankmigrationen und Persistenztests
 

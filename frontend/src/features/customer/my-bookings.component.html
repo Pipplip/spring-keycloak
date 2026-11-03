@@ -1,0 +1,75 @@
+<section aria-labelledby="bookings-title">
+  <h1 class="page-heading" id="bookings-title">My bookings</h1>
+  <p class="page-intro">Your bookings and their current status.</p>
+
+  @if (error()) {
+    <p class="status-message error-message" role="alert">{{ error() }}</p>
+    <button mat-stroked-button type="button" (click)="load(page())">Try again</button>
+  }
+  @if (actionError()) {
+    <p class="status-message error-message" role="alert">{{ actionError() }}</p>
+  }
+  @if (loading()) {
+    <p role="status" aria-live="polite">Loading your bookings…</p>
+  }
+  @if (!loading() && !error() && bookings().length === 0) {
+    <p class="empty-state" role="status">You do not have any bookings yet.</p>
+  }
+
+  <div class="content-grid">
+    @for (booking of bookings(); track booking.id) {
+      <mat-card appearance="outlined">
+        <mat-card-header>
+          <mat-card-title>Booking {{ booking.id }}</mat-card-title>
+          <mat-card-subtitle>{{ booking.status }}</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <p>{{ booking.deliveryDate }} to {{ booking.pickupDate }}</p>
+          <p>{{ booking.quantity }} container(s); {{ booking.assignedContainerCount }} assigned</p>
+          <p>Daily price: {{ money(booking.dailyPriceCents, booking.currencyCode) }}</p>
+          <p>
+            Delivery to {{ booking.deliveryAddress.street }}
+            {{ booking.deliveryAddress.houseNumber }}, {{ booking.deliveryAddress.postalCode }}
+            {{ booking.deliveryAddress.city }}
+          </p>
+          @if (invoices()[booking.id]; as invoice) {
+            <section aria-label="Invoice details">
+              <h3>Invoice {{ invoice.invoiceNumber }}</h3>
+              <p>Status: {{ invoice.status }}</p>
+              <p>Net: {{ money(invoice.netAmountCents, invoice.currencyCode) }}</p>
+              <p>Tax: {{ money(invoice.taxAmountCents, invoice.currencyCode) }}</p>
+              <p>
+                <strong>Total: {{ money(invoice.grossAmountCents, invoice.currencyCode) }}</strong>
+              </p>
+            </section>
+          }
+        </mat-card-content>
+        <mat-card-actions>
+          @if (canCancel(booking.status)) {
+            <button
+              mat-button
+              type="button"
+              [disabled]="busyBookingId() === booking.id"
+              (click)="cancel(booking)"
+            >
+              Cancel booking
+            </button>
+          }
+          <button
+            mat-button
+            type="button"
+            [disabled]="busyBookingId() === booking.id || !!invoices()[booking.id]"
+            (click)="showInvoice(booking.id)"
+          >
+            View invoice
+          </button>
+        </mat-card-actions>
+      </mat-card>
+    }
+  </div>
+  @if (hasMore()) {
+    <div class="form-actions">
+      <button mat-stroked-button type="button" (click)="load(page() + 1)">Next page</button>
+    </div>
+  }
+</section>

@@ -1,0 +1,130 @@
+@use '@angular/material' as mat;
+
+@include mat.core();
+
+:root {
+  color-scheme: light;
+  @include mat.theme(
+    (
+      color: (
+        theme-type: light,
+        primary: mat.$azure-palette,
+        tertiary: mat.$blue-palette,
+      ),
+      typography: Roboto,
+      density: 0,
+    )
+  );
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--mat-sys-on-surface);
+  background: var(--mat-sys-surface);
+  font-family: Roboto, 'Helvetica Neue', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+:focus-visible {
+  outline: 3px solid var(--mat-sys-primary);
+  outline-offset: 3px;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.2;
+}
+
+.page-heading {
+  margin: 0 0 0.5rem;
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+}
+
+.page-intro {
+  margin: 0 0 1.5rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+  gap: 1rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: 0 1rem;
+}
+
+.form-actions,
+.toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-block: 1rem;
+}
+
+.status-message {
+  margin-block: 1rem;
+  padding: 0.875rem 1rem;
+  border-radius: 0.5rem;
+  background: var(--mat-sys-secondary-container);
+}
+
+.error-message {
+  color: var(--mat-sys-error);
+  background: var(--mat-sys-error-container);
+}
+
+.empty-state {
+  padding: 1.5rem;
+  color: var(--mat-sys-on-surface-variant);
+  text-align: center;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  text-align: left;
+  vertical-align: middle;
+}
+
+th {
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 0.875rem;
+}
+
+mat-card {
+  height: 100%;
+}
+
+.tab-content {
+  display: grid;
+  gap: 1.5rem;
+  padding: 1.25rem 0;
+}
+
+.assignment-card {
+  margin-top: 1rem;
+}

@@ -1,0 +1,34 @@
+<a class="skip-link" href="#main-content">Skip to main content</a>
+<mat-toolbar class="site-header" role="navigation" aria-label="Main navigation">
+  <a class="brand" routerLink="/" aria-label="Abfallcontainer home">Abfallcontainer</a>
+  <nav class="primary-nav" aria-label="Primary">
+    <a mat-button routerLink="/catalogue" routerLinkActive="active-link">Catalogue</a>
+    @if (auth.isAuthenticated()) {
+      @if (auth.hasRole('USER')) {
+        <a mat-button routerLink="/bookings" routerLinkActive="active-link">My bookings</a>
+      }
+      @if (auth.hasRole('ADMIN')) {
+        <a mat-button routerLink="/admin" routerLinkActive="active-link">Administration</a>
+      }
+    }
+  </nav>
+  <span class="spacer"></span>
+  @if (auth.isAuthenticated()) {
+    <span class="signed-in" aria-label="Signed in">Signed in</span>
+    <button mat-button type="button" (click)="auth.logout()">Sign out</button>
+  } @else {
+    <button mat-flat-button type="button" (click)="auth.login()">Sign in</button>
+  }
+</mat-toolbar>
+@if (auth.initializationError()) {
+  <p class="status-message error-message auth-warning" role="alert">
+    {{ auth.initializationError() }}
+  </p>
+}
+<main id="main-content" class="page-container" tabindex="-1">
+  <router-outlet />
+</main>
+<footer class="site-footer">
+  <span>Abfallcontainer-Service</span>
+  <span>Questions? Contact our service team.</span>
+</footer>

@@ -10,7 +10,7 @@ customer ownership enforcement in the backend.
 
 ## Status
 
-APPROVED
+IN PROGRESS
 
 ## Prerequisites
 
@@ -23,9 +23,9 @@ APPROVED
 - The existing Keycloak realm defines the `abfallcontainer-frontend` public
   client, local redirect origin `http://localhost:4200`, PKCE configuration,
   and USER/ADMIN roles.
-- Root Docker Compose provides PostgreSQL and Keycloak. The Spring Boot backend
-  currently runs from Gradle on the host; Compose does not yet include backend
-  or frontend application services.
+- Root Docker Compose provides PostgreSQL and Keycloak by default. An opt-in
+  `app` profile adds local-development backend and frontend services; the
+  Spring Boot service generates the Angular client before the frontend starts.
 - `frontend/` has generated build output but no tracked Angular application,
   package manifest, or npm lockfile.
 
@@ -92,16 +92,15 @@ APPROVED
   frontend npm checks to ensure the generated client stays in sync.
 - Reuse the current Spring Boot/Kotlin/JDK 25 backend, PostgreSQL 17 service,
   and imported Keycloak realm. Run PostgreSQL, Keycloak, and the backend using
-  the existing local workflow, with Angular's development server on its
-  configured local origin. Configure backend CORS only if required for this
-  documented local browser integration, restricting allowed origins and
-  methods to the actual need; do not weaken authorization or expose
-  credentials.
+  the existing local workflow or the opt-in Compose `app` profile, with
+  Angular's development server on its configured local origin. Configure
+  backend CORS only if required for this documented local browser integration,
+  restricting allowed origins and methods to the actual need; do not weaken
+  authorization or expose credentials.
 - Keep Dockerfiles and production/containerized frontend deployment in the
-  Deployment milestone unless explicitly approved otherwise. The existing
-  Docker Compose remains the local PostgreSQL/Keycloak infrastructure for the
-  frontend milestone; whether to add application services to Compose is an
-  open question below.
+  Deployment milestone. The approved Compose application services are
+  local-development-only, opt-in via the `app` profile, and use bind mounts
+  rather than production images.
 - Do not add a payment workflow, create unsupported operations, or infer
   backend behavior beyond the documented requirements, business rules, and
   OpenAPI contract. Existing admin APIs manage invoice states; email
@@ -109,16 +108,17 @@ APPROVED
 
 ## Implementation Steps
 
-1. [ ] **Confirm frontend runtime and test tooling**
+1. [x] **Confirm frontend runtime and test tooling**
    - Select an Angular CLI/Angular Material version compatible with a supported
      pinned Node.js LTS release; record the exact versions in the project
      manifests/toolchain configuration.
    - Select the Angular unit/component test setup and a browser-level test
      runner for core workflows. Keep tooling limited to the agreed test scope.
-   - Resolve whether Compose should gain application services in this
-     milestone or remain infrastructure-only until Deployment.
+   - Approved resolution: add backend and frontend local-development services
+     under an opt-in Compose `app` profile; keep production containerization in
+     Deployment.
 
-2. [ ] **Scaffold the Angular application and reproducible npm workflow**
+2. [x] **Scaffold the Angular application and reproducible npm workflow**
    - Create the Angular CLI project under `frontend/` with standalone
      components, strict TypeScript/template checks, and lazy-loaded route
      structure.
@@ -126,7 +126,7 @@ APPROVED
      Node.js tooling, and a committed package lockfile.
    - Verify `npm ci`, Angular compilation, and the baseline test command.
 
-3. [ ] **Configure environment, API client, and error handling**
+3. [x] **Configure environment, API client, and error handling**
    - Configure development and production API origins without modifying
      generated client sources.
    - Wire the generated OpenAPI client into application dependency injection
@@ -136,7 +136,7 @@ APPROVED
    - Add focused tests for API base URL setup, expected Problem Details, and
      unexpected/network errors.
 
-4. [ ] **Implement Keycloak authentication and protected navigation**
+4. [x] **Implement Keycloak authentication and protected navigation**
    - Configure the existing `abfallcontainer-frontend` public client for
      Authorization Code Flow with PKCE, login, logout, and adapter-managed
      in-memory token lifecycle.
@@ -147,7 +147,7 @@ APPROVED
    - Verify the backend remains the authorization boundary and no customer ID
      or role supplied by the UI is treated as trusted.
 
-5. [ ] **Build accessible shared shell and customer workflows**
+5. [x] **Build accessible shared shell and customer workflows**
    - Implement responsive application navigation, page layout, accessible
      loading/empty/error/success feedback, and common status presentation.
    - Implement catalogue and container detail, availability, typed booking
@@ -157,7 +157,7 @@ APPROVED
      cancellation eligibility presentation, keyboard interactions, and
      customer navigation in focused tests.
 
-6. [ ] **Build administrator workflows**
+6. [x] **Build administrator workflows**
    - Implement lazy-loaded ADMIN views for bookings, statuses, container types,
      physical containers and assignments, customers, and invoices using
      existing generated API methods.
@@ -169,7 +169,8 @@ APPROVED
 
 7. [ ] **Verify end-to-end browser integration**
    - Run the existing Docker Compose PostgreSQL and Keycloak services and start
-     the backend through Gradle using the current local configuration.
+     the backend through Gradle or the opt-in Compose `app` profile using the
+     current local configuration.
    - Start the Angular application at the configured Keycloak redirect origin
      and validate public catalogue/availability plus authenticated USER and
      ADMIN workflows against the real API.
@@ -179,6 +180,10 @@ APPROVED
    - Run browser-level coverage for the core customer journey and a
      representative administrator journey; do not make test success depend
      silently on external credentials or services.
+   - Playwright test discovery succeeds, but live browser execution is blocked
+     in the current environment because Chromium's `libnspr4` dependency is
+     unavailable. The Compose stack also cannot be started here without local
+     `.env` values and test identities/inventory.
 
 8. [ ] **Document and verify the frontend milestone**
    - Update README instructions with Node/npm prerequisites, reproducible
@@ -207,9 +212,8 @@ APPROVED
   workflow or authorization change is expected.
 - `docker/keycloak/realm/abfallcontainer-realm-realm.json` — no change expected;
   the existing public client already allows the local Angular origin.
-- `compose.yaml` — only if the approved decision adds application services;
-  production frontend/backend containerization is otherwise deferred to
-  Deployment.
+- `compose.yaml` — opt-in, local-development backend and frontend services;
+  production frontend/backend containerization is deferred to Deployment.
 - `README.md` — frontend development, configuration, integration, and test
   instructions.
 - `openapi/api.yaml` — no changes expected; edit only before generated clients
@@ -273,10 +277,10 @@ endpoints.
   (catalogue through booking and own-booking view/cancel as appropriate) and a
   representative admin workflow. Assert server authorization remains enforced
   for protected API requests.
-- Start PostgreSQL and Keycloak through root Docker Compose, run the backend
-  with the JDK 25 Gradle wrapper, and confirm the SPA can call the API and
-  authenticate against the existing realm. Use test identities/configuration
-  without committing credentials.
+- Start PostgreSQL and Keycloak through root Docker Compose; run the backend
+  with the JDK 25 Gradle wrapper or opt-in `app` profile, and confirm the SPA
+  can call the API and authenticate against the existing realm. Use test
+  identities/configuration without committing credentials.
 - Run from `backend`: `.\gradlew.bat openApiValidate
   generateAngularOpenApi validateAngularOpenApiOutput` (or equivalent
   `./gradlew` commands under Bash) and confirm generated files are build output
@@ -314,7 +318,8 @@ endpoints.
 - Relevant frontend checks, browser workflows, and OpenAPI generation/
   validation checks pass; README instructions match the delivered setup.
 - The Deployment milestone's Dockerfiles, CI pipeline, and production
-  containerization remain untouched unless explicitly added to scope.
+  containerization remain untouched; the approved local Compose app profile
+  does not add production deployment behavior.
 
 ## Definition of Done
 
@@ -349,12 +354,9 @@ endpoints.
 
 ## Open Questions
 
-- Should the frontend milestone add frontend/backend application services to
-  Docker Compose, or should Compose remain limited to PostgreSQL and Keycloak
-  until the Deployment milestone? The proposed scope runs Angular and Spring
-  Boot on the host for local development and defers application containers. - Add frontend and backend services to Compose for local development
-- Which browser-level test runner should be used for the core workflows? The
-  project requires browser-level coverage but does not yet select a runner. - Choose a browser-level test runner for the core workflows, such as Cypress or Playwright.
-- The initial VAT policy requires tax-adviser confirmation before production
-  use; frontend invoice display should present the API's calculated amounts
-  without changing that policy or implying confirmation. - Ok, the frontend will display the API's calculated invoice amounts without altering the VAT policy or implying confirmation.
+- Compose application services: **Resolved** — add frontend and backend
+  services for local development under the opt-in `app` profile; keep the
+  default Compose startup infrastructure-only.
+- Browser-level test runner: **Resolved** — Playwright.
+- VAT presentation: **Resolved** — display API-calculated invoice amounts
+  without altering the VAT policy or implying confirmation.
