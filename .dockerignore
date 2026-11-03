@@ -1,0 +1,17 @@
+.git
+.env
+.env.*
+!.env.example
+secrets
+**/node_modules
+**/build
+**/.gradle
+**/.kotlin
+**/.angular
+**/dist
+**/coverage
+**/test-results
+**/playwright-report
+**/playwright/.cache
+**/*.log
+**/.idea

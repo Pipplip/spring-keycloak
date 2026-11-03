@@ -11,7 +11,7 @@ services:
       KEYCLOAK_DB_USER: ${KEYCLOAK_DB_USER:-keycloak}
       KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?Set KEYCLOAK_DB_PASSWORD in .env}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
@@ -37,10 +37,20 @@ services:
     volumes:
       - ./docker/keycloak/realm:/opt/keycloak/data/import:ro
     ports:
-      - "${KEYCLOAK_PORT:-8081}:8080"
+      - "127.0.0.1:${KEYCLOAK_PORT:-8081}:8080"
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9000; printf \"GET /health/ready HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n\" >&3; grep -q \"200 OK\" <&3'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 
   keycloak-admin-init:
     image: quay.io/keycloak/keycloak:26.3.1
@@ -71,12 +81,13 @@ services:
       SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/${POSTGRES_DB:-abfallcontainer}"
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-abfallcontainer}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      APP_SWAGGER_ENABLED: ${APP_SWAGGER_ENABLED:-false}
       KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-http://localhost:8081/realms/abfallcontainer-realm}
       KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/abfallcontainer-realm/protocol/openid-connect/certs
       KEYCLOAK_API_AUDIENCE: ${KEYCLOAK_API_AUDIENCE:-abfallcontainer-backend}
       FRONTEND_ALLOWED_ORIGIN: ${FRONTEND_ALLOWED_ORIGIN:-http://localhost:4200}
     ports:
-      - "${BACKEND_PORT:-8080}:8080"
+      - "127.0.0.1:${BACKEND_PORT:-8080}:8080"
     volumes:
       - ./backend:/workspace/backend
       - ./openapi:/workspace/openapi:ro
@@ -101,7 +112,7 @@ services:
     environment:
       SKIP_API_GENERATION: "true"
     ports:
-      - "${FRONTEND_PORT:-4200}:4200"
+      - "127.0.0.1:${FRONTEND_PORT:-4200}:4200"
     volumes:
       - ./frontend:/workspace/frontend
       - frontend_node_modules:/workspace/frontend/node_modules

@@ -65,6 +65,32 @@ class SecurityIntegrationTest {
     }
 
     @Test
+    fun `health probes are public but expose only status`() {
+        listOf("/actuator/health/liveness", "/actuator/health/readiness").forEach { path ->
+            val response =
+                mockMvc.perform(get(path))
+                    .andExpect(status().isOk)
+                    .andReturn()
+                    .response
+
+            assertThat(response.contentAsString)
+                .contains("\"status\":\"UP\"")
+                .doesNotContain("components", "details", "database", "jdbc")
+        }
+
+        mockMvc.perform(get("/actuator/env"))
+            .andExpect(status().isUnauthorized)
+    }
+
+    @Test
+    fun `swagger resources are denied unless explicitly enabled`() {
+        mockMvc.perform(get("/swagger-ui/index.html"))
+            .andExpect(status().isUnauthorized)
+        mockMvc.perform(get("/openapi/api.yaml"))
+            .andExpect(status().isUnauthorized)
+    }
+
+    @Test
     fun `CORS permits only the configured local frontend origin`() {
         mockMvc.perform(
             options("/api/v1/container-types")

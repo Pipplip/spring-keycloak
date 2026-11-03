@@ -39,6 +39,8 @@ class SecurityConfiguration(
     private val jwkSetUri: String,
     @param:Value("\${spring.security.oauth2.resourceserver.jwt.audience}")
     private val requiredAudience: String,
+    @param:Value("\${app.swagger.enabled:false}")
+    private val swaggerEnabled: Boolean,
 ) {
     @Bean
     fun jwtDecoder(): JwtDecoder {
@@ -85,6 +87,10 @@ class SecurityConfiguration(
                 it.accessDeniedHandler(problemAccessDeniedHandler())
             }
             .authorizeHttpRequests {
+                it.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                it.requestMatchers("/actuator/**").denyAll()
+                it.requestMatchers("/swagger-ui", "/swagger-ui/**", "/openapi/api.yaml")
+                    .access { _, _ -> AuthorizationDecision(swaggerEnabled) }
                 it.requestMatchers(
                     HttpMethod.GET,
                     "/api/v1/container-types",

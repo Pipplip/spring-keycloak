@@ -56,19 +56,23 @@
 - [x] Extended tests
 
 ## Phase 9: Frontend
-- [ ] Angular project
-- [ ] Responsive shared layout and accessible component theme
-- [ ] Keycloak login and role-aware navigation
-- [ ] Integrate generated OpenAPI client
-- [ ] Customer UI
-- [ ] Admin UI
-- [ ] API error/loading states and frontend tests
-- [ ] Integration with backend
+- [x] Angular project
+- [x] Responsive shared layout and accessible component theme
+- [x] Keycloak login and role-aware navigation
+- [x] Integrate generated OpenAPI client
+- [x] Customer UI
+- [x] Admin UI
+- [x] API error/loading states and frontend tests
+- [x] Integration with backend
 
 ## Phase 10: Deployment
-- [ ] Dockerfile
-- [ ] Complete Docker Compose
-- [ ] Health checks
-- [ ] CI pipeline
-- [ ] README
-- [ ] Swagger UI
+- [x] Dockerfile
+- [x] Complete Docker Compose
+- [x] Health checks
+- [x] CI pipeline configuration
+- [x] README
+- [x] Swagger UI
+
+PLAN-010 remains IN PROGRESS: interactive Keycloak browser login and
+authenticated USER/ADMIN workflows, and execution of the CI workflow on GitHub,
+still require verification.

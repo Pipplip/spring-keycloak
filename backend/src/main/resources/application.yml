@@ -20,3 +20,22 @@ spring:
           issuer-uri: "${KEYCLOAK_ISSUER_URI:http://localhost:8081/realms/abfallcontainer-realm}"
           jwk-set-uri: "${KEYCLOAK_JWK_SET_URI:http://localhost:8081/realms/abfallcontainer-realm/protocol/openid-connect/certs}"
           audience: "${KEYCLOAK_API_AUDIENCE:abfallcontainer-backend}"
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      show-components: never
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,db
+app:
+  swagger:
+    enabled: "${APP_SWAGGER_ENABLED:false}"

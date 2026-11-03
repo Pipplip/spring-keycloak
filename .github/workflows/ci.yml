@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: gradle
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Pin npm
+        run: npm install --global npm@10.9.9
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x backend/gradlew
+
+      - name: Validate OpenAPI and build backend
+        working-directory: backend
+        run: bash ./gradlew --no-daemon openApiValidate validateAngularOpenApiOutput test bootJar
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint, test, and build frontend
+        working-directory: frontend
+        run: |
+          npm run lint
+          npm test -- --watch=false
+          npm run build
+
+      - name: Prepare local Compose secrets
+        run: |
+          cp .env.example .env
+          mkdir -p secrets
+          printf 'ci-postgres-password\n' > secrets/postgres_password.txt
+          printf 'ci-keycloak-db-password\n' > secrets/keycloak_db_password.txt
+          printf 'ci-keycloak-admin-password\n' > secrets/keycloak_admin_password.txt
+
+      - name: Validate deployment Compose configuration
+        run: docker compose -f compose.yaml -f compose.deployment.yaml --profile deployment config --quiet
+
+      - name: Build deployment images
+        run: docker compose -f compose.yaml -f compose.deployment.yaml --profile deployment build backend-deployment frontend-deployment

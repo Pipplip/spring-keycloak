@@ -22,6 +22,7 @@ repositories {
 dependencies {
     implementation(platform("org.springframework.boot:spring-boot-dependencies:$springBootVersion"))
     implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
@@ -31,6 +32,7 @@ dependencies {
 
     runtimeOnly("org.flywaydb:flyway-database-postgresql")
     runtimeOnly("org.postgresql:postgresql")
+    runtimeOnly("org.webjars:swagger-ui:5.18.2")
 
     testImplementation(platform("org.springframework.boot:spring-boot-dependencies:$springBootVersion"))
     testImplementation("org.springframework.boot:spring-boot-starter-test")
@@ -131,6 +133,12 @@ sourceSets {
 
 tasks.named("compileKotlin") {
     dependsOn("generateKotlinOpenApi")
+}
+
+tasks.processResources {
+    from(file(openApiSpec)) {
+        into("static/openapi")
+    }
 }
 
 kotlin {

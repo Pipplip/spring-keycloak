@@ -33,6 +33,7 @@ replay_pid*
 .env
 .env.*
 !.env.example
+secrets/
 
 # Gradle build output
 backend/.gradle/

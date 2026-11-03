@@ -3,7 +3,10 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const generatedClient = fileURLToPath(
-  new URL('../build/generated/openapi/typescript-angular/api/catalogue.service.ts', import.meta.url),
+  new URL(
+    '../build/generated/openapi/typescript-angular/api/catalogue.service.ts',
+    import.meta.url,
+  ),
 );
 const backendDirectory = fileURLToPath(new URL('../../backend/', import.meta.url));
 

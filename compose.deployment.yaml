@@ -1,0 +1,88 @@
+services:
+  postgres:
+    environment:
+      POSTGRES_PASSWORD: ""
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      KEYCLOAK_DB_PASSWORD: ""
+      KEYCLOAK_DB_PASSWORD_FILE: /run/secrets/keycloak_db_password
+    secrets:
+      - postgres_password
+      - keycloak_db_password
+
+  keycloak:
+    entrypoint: ["/bin/bash", "-ec"]
+    command:
+      - >
+        export KC_DB_PASSWORD="$$(cat /run/secrets/keycloak_db_password)";
+        export KC_BOOTSTRAP_ADMIN_PASSWORD="$$(cat /run/secrets/keycloak_admin_password)";
+        exec /opt/keycloak/bin/kc.sh start --import-realm
+    environment:
+      KC_DB_PASSWORD: ""
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ""
+      KC_HEALTH_ENABLED: "true"
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME: ${KEYCLOAK_PUBLIC_URL:-http://localhost:8081}
+      KC_HOSTNAME_STRICT: "true"
+    secrets:
+      - keycloak_db_password
+      - keycloak_admin_password
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9000; printf \"GET /health/ready HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n\" >&3; grep -q \"200 OK\" <&3'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  backend-deployment:
+    profiles: ["deployment"]
+    image: ${BACKEND_IMAGE:-abfallcontainer/backend:local}
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-abfallcontainer}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-abfallcontainer}
+      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-http://localhost:8081/realms/abfallcontainer-realm}
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/abfallcontainer-realm/protocol/openid-connect/certs
+      KEYCLOAK_API_AUDIENCE: ${KEYCLOAK_API_AUDIENCE:-abfallcontainer-backend}
+      FRONTEND_ALLOWED_ORIGIN: ${FRONTEND_ALLOWED_ORIGIN:-http://localhost:4200}
+      APP_SWAGGER_ENABLED: "true"
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8080}:8080"
+    secrets:
+      - source: postgres_password
+        target: app_db_password
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+
+  frontend-deployment:
+    profiles: ["deployment"]
+    image: ${FRONTEND_IMAGE:-abfallcontainer/frontend:local}
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    environment:
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:8080}
+      KEYCLOAK_URL: ${KEYCLOAK_PUBLIC_URL:-http://localhost:8081}
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-4200}:8080"
+    depends_on:
+      backend-deployment:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+
+secrets:
+  postgres_password:
+    file: ${DEPLOYMENT_POSTGRES_PASSWORD_FILE:-./secrets/postgres_password.txt}
+  keycloak_db_password:
+    file: ${DEPLOYMENT_KEYCLOAK_DB_PASSWORD_FILE:-./secrets/keycloak_db_password.txt}
+  keycloak_admin_password:
+    file: ${DEPLOYMENT_KEYCLOAK_ADMIN_PASSWORD_FILE:-./secrets/keycloak_admin_password.txt}

@@ -213,11 +213,11 @@ Lokale Konfiguration:
 - erlaubter Browser-Origin für die API: `http://localhost:4200`
 
 Die öffentlichen Frontend-Werte liegen in
-`frontend/src/environments/environment.ts`. Für einen Produktions-Build sind
-die öffentlichen API- und Keycloak-URLs in
-`frontend/src/environments/environment.prod.ts` auf die eigene Umgebung zu
-setzen; diese Dateien dürfen keine Secrets enthalten. Der Backend-CORS-Origin
-kann mit `FRONTEND_ALLOWED_ORIGIN` gesetzt werden. Standardmäßig sind nur
+`frontend/src/environments/environment.ts`; die Produktionsdatei enthält nur
+secret-freie Build-Fallbacks. Das Frontend-Containerimage liest API- und
+Keycloak-URLs zur Laufzeit aus `API_BASE_URL` und `KEYCLOAK_PUBLIC_URL`. Der
+Backend-CORS-Origin kann mit `FRONTEND_ALLOWED_ORIGIN` gesetzt werden.
+Standardmäßig sind nur
 `http://localhost:4200` und die API-Pfade unter `/api/v1/**` erlaubt. Die API
 bleibt die Autorisierungs- und Ownership-Grenze.
 
@@ -252,7 +252,80 @@ Inventar verfügbar sein.
 Compose startet standardmäßig nur PostgreSQL und Keycloak. Für den lokalen
 Entwicklungsbetrieb sind Backend und Angular optional über
 `docker compose --profile app up -d --wait` verfügbar. Produktionscontainer
-und Deployment bleiben Teil der späteren Deployment-Phase.
+und die imagebasierte Compose-Variante werden im folgenden Abschnitt
+beschrieben.
+
+## Imagebasierter Compose-Betrieb
+
+Die Deployment-Compose-Datei baut und startet Backend und Frontend als
+Produktionsimages. Sie überschreibt den Keycloak-Service für den
+nicht-Development-Modus; ohne die zusätzliche Datei bleibt der bestehende
+lokale Entwicklungsbetrieb unverändert.
+
+1. Erstelle `.env` und die drei lokalen Secret-Dateien. Die Werte werden nicht
+   eingecheckt:
+
+   ```powershell
+   Copy-Item .env.example .env
+   New-Item -ItemType Directory -Force secrets
+   Set-Content secrets/postgres_password.txt "<lokales-datenbankpasswort>"
+   Set-Content secrets/keycloak_db_password.txt "<keycloak-datenbankpasswort>"
+   Set-Content secrets/keycloak_admin_password.txt "<keycloak-adminpasswort>"
+   ```
+
+   `secrets/postgres_password.txt` muss zum Passwort der Anwendungsdatenbank
+   passen; Compose reicht dieselbe Datei sicher an PostgreSQL und das Backend
+   weiter. PostgreSQL und Keycloak sind in dieser lokalen Topologie nur an
+   Loopback-Adressen gebunden. Verwende keine produktiven Zugangsdaten in
+   lokalen Entwicklungsumgebungen.
+
+2. Baue und starte den Stack:
+
+   ```powershell
+   docker compose -f compose.yaml -f compose.deployment.yaml --profile deployment up --build -d --wait
+   docker compose -f compose.yaml -f compose.deployment.yaml --profile deployment ps
+   ```
+
+   Die Images können mit `docker compose ... build` lokal gebaut werden; CI
+   baut sie ebenfalls, veröffentlicht sie aber nicht. Die Frontend-URLs für
+   API und Keycloak werden beim Containerstart aus `API_BASE_URL` und
+   `KEYCLOAK_PUBLIC_URL` in die öffentliche Runtime-Konfiguration geschrieben.
+   Dadurch kann dasselbe Frontend-Image in unterschiedlichen Umgebungen
+   verwendet werden, ohne URLs einzubauen oder Geheimnisse an den Browser
+   auszuliefern.
+
+3. Öffne `http://localhost:4200`. Die API ist unter
+   `http://localhost:8080/api/v1` erreichbar; Swagger UI unter
+   `http://localhost:8080/swagger-ui/index.html`. Swagger UI und die
+   OpenAPI-Datei sind standardmäßig deaktiviert und werden nur durch das lokale
+   Deployment-Profil freigeschaltet. Keycloak ist für den Browser unter
+   `http://localhost:8081` erreichbar; das Backend verwendet für JWKS die
+   interne Compose-Adresse und validiert weiterhin den öffentlichen Issuer
+   `http://localhost:8081/realms/abfallcontainer-realm`.
+
+   Prüfe Backend-Liveness und -Readiness mit
+   `http://localhost:8080/actuator/health/liveness` und
+   `http://localhost:8080/actuator/health/readiness`. Die Readiness bezieht den
+   Zustand der Anwendungsdatenbank ein; Liveness hängt nicht von PostgreSQL
+   ab. Die Antworten enthalten nur den Status. Die API-Authentifizierung und
+   Rollen-/Ownership-Prüfungen bleiben unverändert.
+
+   Diese Compose-Konfiguration stellt weder TLS noch einen öffentlichen
+   Ingress oder eine Secret-Management-Lösung bereit. Sie bindet HTTP-Ports an
+   `127.0.0.1` und ist für lokale Entwicklungs- und Testumgebungen vorgesehen.
+   Für öffentliche Bereitstellung sind eine abgesicherte TLS-Terminierung,
+   externe Zugriffskontrollen, geeignete Secret-Verwaltung und weitere
+   Betriebsmaßnahmen erforderlich. Der importierte Keycloak-Client ist auf die
+   lokale Frontend-URL konfiguriert.
+
+4. Stoppe den Stack, ohne die PostgreSQL-Daten zu löschen:
+
+   ```powershell
+   docker compose -f compose.yaml -f compose.deployment.yaml --profile deployment down
+   ```
+
+   Verwende `down -v` nur, wenn du das lokale Datenbank-Volume ausdrücklich
+   löschen möchtest.
 
 ## Datenbankmigrationen und Persistenztests
 

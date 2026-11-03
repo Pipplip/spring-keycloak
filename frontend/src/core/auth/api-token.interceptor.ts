@@ -1,10 +1,10 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { from, switchMap } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { getRuntimeConfig } from '../../app/runtime-config';
 import { AuthService } from './auth.service';
 
-const apiOrigin = new URL(environment.apiBaseUrl).origin;
+const apiOrigin = new URL(getRuntimeConfig().apiBaseUrl).origin;
 
 export const apiTokenInterceptor: HttpInterceptorFn = (request, next) => {
   let requestOrigin: string;

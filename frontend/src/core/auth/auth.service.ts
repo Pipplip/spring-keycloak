@@ -1,13 +1,15 @@
 import { Injectable, signal } from '@angular/core';
 import Keycloak, { KeycloakInstance } from 'keycloak-js';
-import { environment } from '../../environments/environment';
+import { getRuntimeConfig } from '../../app/runtime-config';
+
+const runtimeConfig = getRuntimeConfig();
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly keycloak: KeycloakInstance = new Keycloak({
-    url: environment.keycloakUrl,
-    realm: environment.keycloakRealm,
-    clientId: environment.keycloakClientId,
+    url: runtimeConfig.keycloakUrl,
+    realm: 'abfallcontainer-realm',
+    clientId: 'abfallcontainer-frontend',
   });
 
   private readonly initializedState = signal(false);
