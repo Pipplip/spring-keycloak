@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authenticatedGuard, roleGuard } from '../core/auth/auth.guards';
+import { authenticatedGuard, customerProfileGuard, roleGuard } from '../core/auth/auth.guards';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'catalogue' },
@@ -18,8 +18,16 @@ export const routes: Routes = [
       ),
   },
   {
-    path: 'book',
+    path: 'profile',
     canActivate: [authenticatedGuard, roleGuard('USER')],
+    loadComponent: () =>
+      import('../features/customer/customer-profile.component').then(
+        (module) => module.CustomerProfileComponent,
+      ),
+  },
+  {
+    path: 'book',
+    canActivate: [authenticatedGuard, roleGuard('USER'), customerProfileGuard],
     loadComponent: () =>
       import('../features/customer/booking-create.component').then(
         (module) => module.BookingCreateComponent,
@@ -27,7 +35,7 @@ export const routes: Routes = [
   },
   {
     path: 'bookings',
-    canActivate: [authenticatedGuard, roleGuard('USER')],
+    canActivate: [authenticatedGuard, roleGuard('USER'), customerProfileGuard],
     loadComponent: () =>
       import('../features/customer/my-bookings.component').then(
         (module) => module.MyBookingsComponent,

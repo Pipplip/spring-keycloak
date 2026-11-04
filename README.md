@@ -99,6 +99,16 @@ der Container werden JDK und Node.js auf dem Host nicht benötigt.
    `ABFALLCONTAINER_ADMIN_PASSWORD`; sie sind unabhängig von den Zugangsdaten
    für die Keycloak-Administration.
 
+   Kunden können über **Register** die von Keycloak gehostete Registrierung
+   starten. Neue Konten erhalten automatisch die Rolle `USER`; eine bestätigte
+   E-Mail-Adresse ist für die Erstellung des lokalen Kundenprofils nicht
+   erforderlich. Beim ersten Aufruf eines Kunden-Buchungsablaufs werden
+   Kunden ohne lokales Profil zur Profilvervollständigung weitergeleitet. Name
+   und E-Mail kommen aus dem Keycloak-Token; Firmenname und Rechnungsadresse
+   werden im Kundenprofil verwaltet. Spätere
+   Änderungen von Name oder E-Mail in Keycloak werden nicht automatisch in das
+   Profil übernommen.
+
 4. Zeige bei Bedarf die Logs an:
 
    ```powershell
@@ -215,8 +225,10 @@ Für Playwright-End-to-End-Tests installiere Chromium mit
 `npx.cmd playwright install chromium` und starte zuvor die lokale Umgebung.
 Authentifizierte Tests benötigen lokale Keycloak-Testkonten sowie passende
 Inventardaten. Übergib die Zugangsdaten über `E2E_USER_USERNAME`,
-`E2E_USER_PASSWORD`, `E2E_ADMIN_USERNAME` und `E2E_ADMIN_PASSWORD`; lege sie
-nicht in versionierten Dateien ab.
+`E2E_USER_PASSWORD`, `E2E_ADMIN_USERNAME` und `E2E_ADMIN_PASSWORD`.
+Der optionale Keycloak-Registrierungsablauf benötigt außerdem
+`E2E_REGISTRATION_PASSWORD`. Lege Zugangsdaten nicht in versionierten Dateien
+ab.
 
 ## API und Datenbank
 

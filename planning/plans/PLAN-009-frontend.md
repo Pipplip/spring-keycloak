@@ -104,7 +104,7 @@ IN PROGRESS
 - Do not add a payment workflow, create unsupported operations, or infer
   backend behavior beyond the documented requirements, business rules, and
   OpenAPI contract. Existing admin APIs manage invoice states; email
-  notifications remain deferred to FEAT-001.
+  notifications remain deferred to FEAT-002.
 
 ## Implementation Steps
 

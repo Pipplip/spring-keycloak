@@ -98,6 +98,18 @@ class SecurityConfiguration(
                     "/api/v1/availability",
                 ).permitAll()
                 it.requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                it.requestMatchers(
+                    HttpMethod.GET,
+                    "/api/v1/customers/me",
+                ).hasRole("USER")
+                it.requestMatchers(
+                    HttpMethod.POST,
+                    "/api/v1/customers/me",
+                ).hasRole("USER")
+                it.requestMatchers(
+                    HttpMethod.PUT,
+                    "/api/v1/customers/me",
+                ).hasRole("USER")
                 it.requestMatchers("/api/v1/bookings", "/api/v1/bookings/**")
                     .access { authentication, _ ->
                         val principal = authentication.get()

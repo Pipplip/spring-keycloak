@@ -3,6 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 
 const username = process.env.E2E_USER_USERNAME;
 const password = process.env.E2E_USER_PASSWORD;
+const registrationPassword = process.env.E2E_REGISTRATION_PASSWORD;
 
 async function signInAsCustomer(page: import('@playwright/test').Page): Promise<void> {
   await page.goto('/catalogue');
@@ -11,6 +12,26 @@ async function signInAsCustomer(page: import('@playwright/test').Page): Promise<
   await page.getByLabel(/password/i).fill(password ?? '');
   await page.getByRole('button', { name: /sign in/i }).click();
   await page.waitForURL('http://localhost:4200/**');
+  await completeProfileIfNeeded(page);
+}
+
+async function completeProfileIfNeeded(page: import('@playwright/test').Page): Promise<void> {
+  await page.goto('/bookings');
+  await expect(
+    page.getByRole('heading', { name: /My bookings|Complete your customer profile/ }),
+  ).toBeVisible();
+  if (new URL(page.url()).pathname !== '/profile') {
+    return;
+  }
+
+  await page.getByLabel('Street').fill('Test Street');
+  await page.getByLabel('House number').fill('1');
+  await page.getByLabel('Postal code').fill('10115');
+  await page.getByLabel('City').fill('Berlin');
+  await page.getByLabel('Country code').fill('DE');
+  await page.getByRole('button', { name: 'Create profile' }).click();
+  await expect(page).toHaveURL(/\/bookings$/);
+  await expect(page.getByRole('heading', { name: 'My bookings' })).toBeVisible();
 }
 
 test('public catalogue loads from the backend API', async ({ page }) => {
@@ -32,6 +53,31 @@ test('public catalogue has no critical or serious accessibility violations', asy
       ['critical', 'serious'].includes(violation.impact ?? ''),
     ),
   ).toEqual([]);
+});
+
+test('new customers can register and complete their local profile', async ({ page }) => {
+  test.skip(
+    !registrationPassword,
+    'Set E2E_REGISTRATION_PASSWORD to run the Keycloak self-registration workflow.',
+  );
+  const username = `registration-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
+  const email = `${username}@example.test`;
+
+  await page.goto('/catalogue');
+  await page.getByRole('button', { name: 'Register' }).click();
+  await page.getByLabel('First name').fill('Test');
+  await page.getByLabel('Last name').fill('Customer');
+  await page.getByLabel('Email').fill(email);
+  await page.getByLabel('Username').fill(username);
+  await page.getByRole('textbox', { name: 'Password', exact: true }).fill(registrationPassword!);
+  await page
+    .getByRole('textbox', { name: 'Confirm password', exact: true })
+    .fill(registrationPassword!);
+  await page.getByRole('button', { name: 'Register' }).last().click();
+  await page.waitForURL('http://localhost:4200/**');
+  await expect(page.getByRole('link', { name: 'My bookings' })).toBeVisible();
+
+  await completeProfileIfNeeded(page);
 });
 
 test('customer can check availability and create a booking', async ({ page }) => {

@@ -31,6 +31,7 @@ import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.testcontainers.containers.PostgreSQLContainer
@@ -222,6 +223,130 @@ class CustomerFeaturesIntegrationTest {
 
         val noInvoiceBooking = bookingRepository.save(booking(owner.id, type.id))
         mockMvc.perform(get("/api/v1/bookings/${noInvoiceBooking.id}/invoice").with(userToken(owner.keycloakSubject)))
+            .andExpect(status().isNotFound)
+    }
+
+    @Test
+    fun `current customer can create read and update only their service-managed profile fields`() {
+        val subject = "registration-${UUID.randomUUID()}"
+        val customerId = UUID.randomUUID()
+        val profileBody =
+            mapOf(
+                "companyName" to "Analytical Engines",
+                "billingAddress" to address(),
+                "customerId" to customerId,
+                "keycloakSubject" to "attacker-selected-subject",
+                "email" to "attacker@example.test",
+                "firstName" to "Attacker",
+                "lastName" to "Name",
+            )
+
+        mockMvc.perform(get("/api/v1/customers/me").with(userToken(subject)))
+            .andExpect(status().isNotFound)
+
+        val created =
+            mockMvc.perform(
+                post("/api/v1/customers/me")
+                    .with(userIdentityToken(subject, "ada-${UUID.randomUUID()}@example.test"))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(profileBody)),
+            ).andExpect(status().isCreated)
+                .andExpect(jsonPath("$.email").value(org.hamcrest.Matchers.startsWith("ada-")))
+                .andExpect(jsonPath("$.firstName").value("Ada"))
+                .andExpect(jsonPath("$.lastName").value("Lovelace"))
+                .andExpect(jsonPath("$.companyName").value("Analytical Engines"))
+                .andExpect(jsonPath("$.id").doesNotExist())
+                .andExpect(jsonPath("$.customerId").doesNotExist())
+                .andExpect(jsonPath("$.keycloakSubject").doesNotExist())
+                .andReturn()
+        val profileEmail = objectMapper.readTree(created.response.contentAsString).get("email").asText()
+        val saved = requireNotNull(customerRepository.findByKeycloakSubject(subject))
+
+        assertThat(saved.email).isEqualTo(profileEmail)
+        assertThat(saved.firstName).isEqualTo("Ada")
+        assertThat(saved.lastName).isEqualTo("Lovelace")
+        assertThat(saved.keycloakSubject).isEqualTo(subject)
+
+        mockMvc.perform(get("/api/v1/customers/me").with(userToken(subject)))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.email").value(profileEmail))
+            .andExpect(jsonPath("$.firstName").value("Ada"))
+            .andExpect(jsonPath("$.billingAddress.city").value("Example"))
+
+        val updateBody =
+            mapOf(
+                "companyName" to "Updated Company",
+                "billingAddress" to address().copy(city = "Berlin"),
+                "customerId" to UUID.randomUUID(),
+                "keycloakSubject" to "different-subject",
+                "email" to "different@example.test",
+                "firstName" to "Changed",
+                "lastName" to "Identity",
+            )
+        mockMvc.perform(
+            put("/api/v1/customers/me")
+                .with(userToken(subject))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(updateBody)),
+        ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.companyName").value("Updated Company"))
+            .andExpect(jsonPath("$.billingAddress.city").value("Berlin"))
+            .andExpect(jsonPath("$.email").value(profileEmail))
+            .andExpect(jsonPath("$.firstName").value("Ada"))
+            .andExpect(jsonPath("$.lastName").value("Lovelace"))
+            .andExpect(jsonPath("$.id").doesNotExist())
+
+        val updated = requireNotNull(customerRepository.findByKeycloakSubject(subject))
+        assertThat(updated.email).isEqualTo(profileEmail)
+        assertThat(updated.firstName).isEqualTo("Ada")
+        assertThat(updated.keycloakSubject).isEqualTo(subject)
+        assertThat(updated.billingAddress.city).isEqualTo("Berlin")
+    }
+
+    @Test
+    fun `profile onboarding handles duplicate identity and email conflicts explicitly`() {
+        val existing = customerRepository.save(customer())
+        val anotherSubject = "collision-${UUID.randomUUID()}"
+
+        val duplicateSubject =
+            mockMvc.perform(
+                post("/api/v1/customers/me")
+                    .with(userIdentityToken(existing.keycloakSubject, "other-${UUID.randomUUID()}@example.test"))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(mapOf("billingAddress" to address()))),
+            ).andExpect(status().isConflict)
+                .andReturn()
+        assertThat(duplicateSubject.response.contentAsString)
+            .contains("already exists for this identity")
+
+        val duplicateEmail =
+            mockMvc.perform(
+                post("/api/v1/customers/me")
+                    .with(userIdentityToken(anotherSubject, existing.email))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(mapOf("billingAddress" to address()))),
+            ).andExpect(status().isConflict)
+                .andReturn()
+        assertThat(duplicateEmail.response.contentAsString)
+            .contains("already uses this identity email")
+            .contains("Contact support")
+    }
+
+    @Test
+    fun `profile endpoints require USER role and leave profile-less users blocked from bookings`() {
+        val subject = "profile-less-${UUID.randomUUID()}"
+        mockMvc.perform(get("/api/v1/customers/me"))
+            .andExpect(status().isUnauthorized)
+        mockMvc.perform(
+            post("/api/v1/customers/me")
+                .with(jwt().jwt { it.subject(subject) }.authorities(SimpleGrantedAuthority("ROLE_ADMIN")))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(mapOf("billingAddress" to address()))),
+        ).andExpect(status().isForbidden)
+
+        mockMvc.perform(get("/api/v1/bookings").with(userToken(subject)))
+            .andExpect(status().isForbidden)
+        mockMvc.perform(get("/api/v1/customers/me").with(userToken(subject)))
             .andExpect(status().isNotFound)
     }
 
@@ -506,6 +631,18 @@ class CustomerFeaturesIntegrationTest {
 
     private fun userToken(subject: String) =
         jwt().jwt { it.subject(subject) }.authorities(SimpleGrantedAuthority("ROLE_USER"))
+
+    private fun userIdentityToken(
+        subject: String,
+        email: String,
+    ) = jwt()
+        .jwt {
+            it.subject(subject)
+                .claim("email", email)
+                .claim("given_name", "Ada")
+                .claim("family_name", "Lovelace")
+        }
+        .authorities(SimpleGrantedAuthority("ROLE_USER"))
 
     private fun customer() =
         Customer(

@@ -26,8 +26,15 @@ Administrators manage customers, inventory, bookings and invoices.
 ## 3. Functional Requirements
 
 ### FR-001: Customer Management
-- Customers authenticate through Keycloak.
-- Customer profiles are stored locally.
+- Customers self-register through the Keycloak-hosted registration flow and
+  authenticate through Keycloak.
+- New accounts receive the USER role automatically; email verification is not
+  required before local profile creation.
+- Customer profiles are created and stored locally after authentication.
+- Keycloak supplies the authoritative email and first/last names. Customers
+  manage their company name and billing address in the service; later
+  Keycloak identity-attribute changes are not synchronized automatically.
+- Customers can retrieve and update only their own profile.
 - Only one type of customer is supported.
 - Billing addresses are stored.
 
@@ -81,7 +88,7 @@ Administrators manage customers, inventory, bookings and invoices.
 ### FR-008: Notifications
 - Send booking confirmation emails.
 - Send cancellation emails.
-- Invoice lifecycle email notifications are deferred to FEAT-001 in the
+- Invoice lifecycle email notifications are deferred to FEAT-002 in the
   planning backlog.
 
 ### FR-009: Frontend
@@ -95,6 +102,8 @@ Administrators manage customers, inventory, bookings and invoices.
 - Authenticate with the existing Keycloak realm using OpenID Connect
   Authorization Code Flow with PKCE. The browser application is a public
   client and must not contain a client secret.
+- Provide Keycloak-hosted account registration and a local customer profile
+  completion/edit experience for authenticated USER accounts.
 - Show clear loading, empty, validation, success, and API error states. Render
   API Problem Details as user-safe messages without exposing internal details.
 - Provide keyboard-operable controls, semantic markup, visible focus, and

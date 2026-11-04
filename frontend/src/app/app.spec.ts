@@ -34,6 +34,7 @@ describe('App', () => {
     expect(root.querySelector('a.skip-link')?.getAttribute('href')).toBe('#main-content');
     expect(root.querySelector('nav[aria-label="Primary"]')).not.toBeNull();
     expect(root.querySelector('main#main-content')).not.toBeNull();
+    expect(root.textContent).toContain('Register');
     expect(root.textContent).toContain('Sign in');
   });
 });

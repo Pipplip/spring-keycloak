@@ -46,7 +46,7 @@
 - [x] Invoice calculation
 - [x] Invoice status
 - [x] Invoice retrieval and administration
-- [ ] Email notifications (deferred to FEAT-001 in the backlog)
+- [ ] Email notifications (deferred to FEAT-002 in the backlog)
 
 ## Phase 8: Hardening
 - [x] Validation
@@ -76,3 +76,17 @@
 PLAN-010 remains IN PROGRESS: interactive Keycloak browser login and
 authenticated USER/ADMIN workflows, and execution of the CI workflow on GitHub,
 still require verification.
+
+PLAN-009 remains IN PROGRESS pending authenticated customer/administrator
+browser verification and execution of the CI workflow on GitHub.
+
+PLAN-011 is COMPLETED after backend/frontend checks and the isolated local
+Keycloak registration/profile browser workflow passed. PLAN-009 and PLAN-010
+remain in progress for their separately tracked verification.
+
+## Phase 11: Customer Registration and Profiles
+- [x] Keycloak-hosted self-registration with automatic USER assignment
+- [x] Local customer profile onboarding and current-profile API
+- [x] Customer profile completion and editing UI
+- [x] Profile ownership and authorization tests
+- [x] Documentation and local setup

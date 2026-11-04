@@ -109,8 +109,11 @@ tasks.register("validateAngularOpenApiOutput") {
                 "api/bookings.service.ts",
                 "api/administration.service.ts",
                 "api/invoices.service.ts",
+                "api/customerProfiles.service.ts",
                 "model/address.ts",
                 "model/booking.ts",
+                "model/customerProfile.ts",
+                "model/customerProfileRequest.ts",
                 "model/containerAssignmentPage.ts",
                 "model/problemDetail.ts",
             )

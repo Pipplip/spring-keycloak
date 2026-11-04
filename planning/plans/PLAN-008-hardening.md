@@ -289,7 +289,7 @@ generated outputs. Never edit generated sources manually.
   these belong to Phase 10 unless separately approved.
 - Introducing a metrics/tracing platform, a new logging stack, or unapproved
   Gradle lint/static-analysis tooling.
-- Invoice email notifications, which remain deferred to FEAT-001.
+- Invoice email notifications, which remain deferred to FEAT-002.
 
 ## Open Questions
 

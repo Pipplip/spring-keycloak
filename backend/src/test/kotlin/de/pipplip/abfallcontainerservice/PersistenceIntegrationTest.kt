@@ -185,6 +185,10 @@ class PersistenceIntegrationTest {
         }.isInstanceOf(DataIntegrityViolationException::class.java)
 
         assertThatThrownBy {
+            customerRepository.save(customer(subject = customer.keycloakSubject))
+        }.isInstanceOf(DataIntegrityViolationException::class.java)
+
+        assertThatThrownBy {
             jdbcTemplate.update("UPDATE bookings SET quantity = 0 WHERE id = ?", firstBooking.id)
         }.isInstanceOf(DataIntegrityViolationException::class.java)
 
@@ -330,9 +334,10 @@ class PersistenceIntegrationTest {
 
     private fun customer(
         email: String = "customer-${UUID.randomUUID()}@example.test",
+        subject: String = "subject-${UUID.randomUUID()}",
     ) = Customer(
         id = UUID.randomUUID(),
-        keycloakSubject = "subject-${UUID.randomUUID()}",
+        keycloakSubject = subject,
         email = email,
         firstName = "Ada",
         lastName = "Lovelace",

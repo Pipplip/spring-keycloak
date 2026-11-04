@@ -89,8 +89,13 @@ Local Keycloak security configuration:
   use the internal Keycloak JWKS endpoint while retaining this issuer for token
   validation.
 - Customer ownership is derived from the verified JWT `sub` and the local
-  customer's unique Keycloak subject. Authenticated USER tokens without a local
-  customer profile are denied; profiles are not provisioned automatically.
+  customer's unique Keycloak subject. An authenticated USER can create a
+  profile from the verified token's subject, email, first name, and last name;
+  company name and billing address are service-managed. USERs without a local
+  profile remain denied access to booking operations until profile creation.
+  Identity-attribute changes in Keycloak are not synchronized automatically.
+- The local realm allows hosted self-registration, assigns the USER role by
+  default, and does not require email verification before profile creation.
 
 Frontend:
 - Angular SPA.
@@ -133,6 +138,9 @@ Frontend:
   Code Flow + PKCE. Keep tokens in memory under the OIDC adapter's management,
   use the adapter's refresh lifecycle, and send users through the normal
   authorization flow rather than collecting or handling passwords in the app.
+- Start registration through the Keycloak-hosted registration UI. Use the
+  generated profile API for onboarding and editing, and direct profile-less
+  USERs to profile completion before customer booking workflows.
 - Use route guards to direct unauthenticated users to login and to hide
   irrelevant USER/ADMIN navigation. These checks are only UX; backend
   authorization and ownership checks remain mandatory.
@@ -170,7 +178,7 @@ The backend sends emails for:
 - Booking confirmation.
 - Booking cancellation.
 
-Invoice lifecycle notifications are deferred to FEAT-001 in the planning
+Invoice lifecycle notifications are deferred to FEAT-002 in the planning
 backlog and are not sent by the invoicing milestone.
 
 The email provider is still to be selected.

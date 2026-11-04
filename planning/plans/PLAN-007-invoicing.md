@@ -5,7 +5,7 @@
 Implement the Invoicing roadmap milestone on the existing Kotlin, Spring Boot,
 PostgreSQL, and Keycloak foundation. Create and calculate booking invoices
 and support the documented invoice lifecycle and access patterns. Invoice
-email notifications are deferred to FEAT-001 in the planning backlog.
+email notifications are deferred to FEAT-002 in the planning backlog.
 
 ## Status
 
@@ -23,7 +23,7 @@ COMPLETED
   implemented.
 - Invoice creation, calculation, numbering, and lifecycle decisions are
   recorded below and in the relevant requirements and design documentation.
-- Invoice email notifications are deferred to FEAT-001 by user direction.
+- Invoice email notifications are deferred to FEAT-002 by user direction.
 
 ## Scope
 
@@ -36,7 +36,7 @@ COMPLETED
 - Preserve customer retrieval of an invoice only for the authenticated
   customer's own booking, deriving ownership from the verified Keycloak
   subject.
-- Defer invoice email notifications to FEAT-001; do not add provider
+- Defer invoice email notifications to FEAT-002; do not add provider
   configuration or send emails as part of this milestone.
 - Add unit, PostgreSQL integration, and API/security tests; document invoice
   policies and local testing.
@@ -84,7 +84,7 @@ COMPLETED
    - Record the approved creation timing, eligibility, calculation, VAT,
      numbering, and invoice status-transition decisions below and in the
      relevant project documentation.
-   - Email notifications are deferred to FEAT-001; provider, recipient,
+   - Email notifications are deferred to FEAT-002; provider, recipient,
      content, and delivery/retry decisions are not needed for this milestone.
    - Update the relevant requirements, business rules, data model, and API
      contract to reflect the recorded invoice policies.
@@ -120,7 +120,7 @@ COMPLETED
      transitions, and manual payment marking.
 
 5. [x] **Defer invoice email notifications**
-   - Invoice lifecycle notifications are deferred to FEAT-001 in
+   - Invoice lifecycle notifications are deferred to FEAT-002 in
      `planning/backlog.md`, as requested.
    - Do not send email or add provider configuration in PLAN-007.
 
@@ -168,7 +168,7 @@ COMPLETED
 - `docs/requirements.md`, `docs/business-rules.md`, `docs/data-model.md`, and
   `docs/architecture.md` — approved policy and integration decisions.
 - `planning/backlog.md` — record invoice lifecycle email notifications as
-  deferred work under FEAT-001.
+  deferred work under FEAT-002.
 - `README.md` — approved local setup, configuration, and test instructions.
 - `planning/roadmap.md` and this plan — status updates after successful
   implementation only.
@@ -215,7 +215,7 @@ committed manually.
   invoice responses, duplicate creation, lifecycle transitions, and manual
   paid marking.
 - Verify that invoice creation and status transitions do not send email;
-  notifications are deferred to FEAT-001.
+  notifications are deferred to FEAT-002.
 - Run OpenAPI validation and generation, the Gradle test/build tasks, and any
   relevant existing Compose opt-in test without running migrations against
   Keycloak's database.
@@ -233,7 +233,7 @@ committed manually.
 - Customers can retrieve only invoices associated with their own bookings;
   ownership is derived from the authenticated Keycloak subject.
 - Invoice creation and status transitions send no email; invoice email
-  notifications are deferred to FEAT-001.
+  notifications are deferred to FEAT-002.
 - The existing booking confirmation rule continues to require a PAID invoice.
 - OpenAPI-generated interfaces and models compile, PostgreSQL integration and
   API/security tests cover the behavior, and any necessary schema change is a
@@ -262,7 +262,7 @@ committed manually.
   remains manually managed as documented.
 - Invoice PDF generation, which is documented as a future enhancement.
 - Invoice email notifications and provider/delivery policy, deferred to
-  FEAT-001 in the planning backlog.
+  FEAT-002 in the planning backlog.
 - Frontend application work.
 - Changes to Keycloak realm/client configuration or identity provisioning.
 - Unapproved changes to customer, booking, pricing, VAT, tax, cancellation, or
@@ -283,7 +283,7 @@ committed manually.
 - The only transitions are DRAFT to SENT or VOID and SENT to PAID. PAID and
   VOID are terminal.
 - Invoice email notifications were explicitly deferred by the user to
-  FEAT-001 in `planning/backlog.md`. No email provider, recipients, content,
+  FEAT-002 in `planning/backlog.md`. No email provider, recipients, content,
   failure/retry policy, or duplicate-notification behavior is selected here.
 - Mock-provider testing and a local email-capture service are not part of
   PLAN-007 because the notification feature is deferred.

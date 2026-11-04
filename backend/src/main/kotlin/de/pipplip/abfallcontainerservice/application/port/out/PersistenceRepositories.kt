@@ -29,6 +29,8 @@ interface CustomerRepository {
 
     fun findByKeycloakSubject(keycloakSubject: String): Customer?
 
+    fun findByEmail(email: String): Customer?
+
     fun findPage(page: Int, size: Int): PageResult<Customer>
 }
 

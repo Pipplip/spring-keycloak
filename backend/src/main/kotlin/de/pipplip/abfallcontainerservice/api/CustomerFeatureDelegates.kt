@@ -9,14 +9,18 @@ import de.pipplip.abfallcontainerservice.application.service.CustomerBookingCanc
 import de.pipplip.abfallcontainerservice.application.service.CustomerBookingQueryService
 import de.pipplip.abfallcontainerservice.application.service.CustomerBookingService
 import de.pipplip.abfallcontainerservice.application.service.CustomerInvoiceQueryService
+import de.pipplip.abfallcontainerservice.application.service.CustomerSelfServiceProfileInput
+import de.pipplip.abfallcontainerservice.application.service.CustomerProfileService
 import de.pipplip.abfallcontainerservice.domain.model.Address as DomainAddress
 import de.pipplip.abfallcontainerservice.domain.model.Booking as DomainBooking
 import de.pipplip.abfallcontainerservice.domain.model.ContainerType as DomainContainerType
+import de.pipplip.abfallcontainerservice.domain.model.Customer as DomainCustomer
 import de.pipplip.abfallcontainerservice.domain.model.Invoice as DomainInvoice
 import de.pipplip.abfallcontainerservice.domain.model.InvoiceStatus as DomainInvoiceStatus
 import de.pipplip.abfallcontainerservice.generated.api.AvailabilityApiDelegate
 import de.pipplip.abfallcontainerservice.generated.api.BookingsApiDelegate
 import de.pipplip.abfallcontainerservice.generated.api.CatalogueApiDelegate
+import de.pipplip.abfallcontainerservice.generated.api.CustomerProfilesApiDelegate
 import de.pipplip.abfallcontainerservice.generated.api.InvoicesApiDelegate
 import de.pipplip.abfallcontainerservice.generated.model.Address as ApiAddress
 import de.pipplip.abfallcontainerservice.generated.model.Availability as ApiAvailability
@@ -24,6 +28,8 @@ import de.pipplip.abfallcontainerservice.generated.model.Booking as ApiBooking
 import de.pipplip.abfallcontainerservice.generated.model.BookingPage as ApiBookingPage
 import de.pipplip.abfallcontainerservice.generated.model.ContainerType as ApiContainerType
 import de.pipplip.abfallcontainerservice.generated.model.ContainerTypePage as ApiContainerTypePage
+import de.pipplip.abfallcontainerservice.generated.model.CustomerProfile as ApiCustomerProfile
+import de.pipplip.abfallcontainerservice.generated.model.CustomerProfileRequest as ApiCustomerProfileRequest
 import de.pipplip.abfallcontainerservice.generated.model.Invoice as ApiInvoice
 import de.pipplip.abfallcontainerservice.generated.model.InvoiceLine as ApiInvoiceLine
 import de.pipplip.abfallcontainerservice.generated.model.InvoicePage as ApiInvoicePage
@@ -183,6 +189,42 @@ class InvoicesApiDelegateImpl(
     override fun voidAdminInvoice(invoiceId: java.util.UUID): ResponseEntity<ApiInvoice> =
         ResponseEntity.ok(adminInvoiceService.transition(invoiceId, DomainInvoiceStatus.VOID).toApi())
 }
+
+@Service
+class CustomerProfilesApiDelegateImpl(
+    private val customerProfileService: CustomerProfileService,
+) : CustomerProfilesApiDelegate {
+    override fun createMyCustomerProfile(
+        customerProfileRequest: ApiCustomerProfileRequest,
+    ): ResponseEntity<ApiCustomerProfile> =
+        ResponseEntity.status(HttpStatus.CREATED)
+            .body(customerProfileService.create(customerProfileRequest.toInput()).toApiProfile())
+
+    override fun getMyCustomerProfile(): ResponseEntity<ApiCustomerProfile> =
+        ResponseEntity.ok(customerProfileService.getCurrentProfile().toApiProfile())
+
+    override fun updateMyCustomerProfile(
+        customerProfileRequest: ApiCustomerProfileRequest,
+    ): ResponseEntity<ApiCustomerProfile> =
+        ResponseEntity.ok(customerProfileService.updateCurrentProfile(customerProfileRequest.toInput()).toApiProfile())
+}
+
+private fun ApiCustomerProfileRequest.toInput() =
+    CustomerSelfServiceProfileInput(
+        companyName = companyName,
+        billingAddress = billingAddress.toDomain(),
+    )
+
+private fun DomainCustomer.toApiProfile() =
+    ApiCustomerProfile(
+        email = email,
+        firstName = firstName,
+        lastName = lastName,
+        companyName = companyName,
+        billingAddress = billingAddress.toApi(),
+        createdAt = createdAt.atOffset(ZoneOffset.UTC),
+        updatedAt = updatedAt.atOffset(ZoneOffset.UTC),
+    )
 
 internal fun DomainContainerType.toApi() =
     ApiContainerType(

@@ -8,6 +8,8 @@ import de.pipplip.abfallcontainerservice.generated.api.BookingsApi
 import de.pipplip.abfallcontainerservice.generated.api.BookingsApiDelegate
 import de.pipplip.abfallcontainerservice.generated.api.CatalogueApi
 import de.pipplip.abfallcontainerservice.generated.api.CatalogueApiDelegate
+import de.pipplip.abfallcontainerservice.generated.api.CustomerProfilesApi
+import de.pipplip.abfallcontainerservice.generated.api.CustomerProfilesApiDelegate
 import de.pipplip.abfallcontainerservice.generated.api.InvoicesApi
 import de.pipplip.abfallcontainerservice.generated.api.InvoicesApiDelegate
 import org.springframework.web.bind.annotation.RestController
@@ -24,6 +26,13 @@ class CatalogueApiController(
     private val delegate: CatalogueApiDelegate,
 ) : CatalogueApi {
     override fun getDelegate(): CatalogueApiDelegate = delegate
+}
+
+@RestController
+class CustomerProfilesApiController(
+    private val delegate: CustomerProfilesApiDelegate,
+) : CustomerProfilesApi {
+    override fun getDelegate(): CustomerProfilesApiDelegate = delegate
 }
 
 @RestController

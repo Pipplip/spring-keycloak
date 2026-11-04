@@ -9,8 +9,13 @@ import de.pipplip.abfallcontainerservice.application.service.BookingNotFoundExce
 import de.pipplip.abfallcontainerservice.application.service.BookingOwnershipDeniedException
 import de.pipplip.abfallcontainerservice.application.service.ContainerTypeNotFoundException
 import de.pipplip.abfallcontainerservice.application.service.CustomerProfileNotFoundException
+import de.pipplip.abfallcontainerservice.application.service.CustomerIdentityAttributesUnavailableException
+import de.pipplip.abfallcontainerservice.application.service.CustomerProfileConflict
+import de.pipplip.abfallcontainerservice.application.service.CustomerProfileConflictException
+import de.pipplip.abfallcontainerservice.application.service.CustomerSelfProfileNotFoundException
 import de.pipplip.abfallcontainerservice.application.service.InsufficientInventoryException
 import de.pipplip.abfallcontainerservice.application.service.InvalidCustomerFeatureRequestException
+import de.pipplip.abfallcontainerservice.application.service.InvalidCustomerProfileRequestException
 import de.pipplip.abfallcontainerservice.application.service.InvoiceNotFoundException
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.ConstraintViolationException
@@ -46,9 +51,20 @@ class CustomerOwnershipExceptionHandler {
             .contentType(MediaType.APPLICATION_PROBLEM_JSON)
             .body(problemBody(HttpStatus.UNAUTHORIZED, "A verified customer identity is required."))
 
-    @ExceptionHandler(BookingOwnershipDeniedException::class, CustomerProfileNotFoundException::class)
+    @ExceptionHandler(
+        BookingOwnershipDeniedException::class,
+        CustomerProfileNotFoundException::class,
+    )
     fun forbidden(): ResponseEntity<ProblemDetail> =
         problem(HttpStatus.FORBIDDEN, "You do not have permission to access this resource.")
+
+    @ExceptionHandler(CustomerIdentityAttributesUnavailableException::class)
+    fun identityAttributesUnavailable(): ResponseEntity<ProblemDetail> =
+        problem(HttpStatus.FORBIDDEN, "The identity provider did not supply the required profile information.")
+
+    @ExceptionHandler(CustomerSelfProfileNotFoundException::class)
+    fun customerProfileNotFound(): ResponseEntity<ProblemDetail> =
+        problem(HttpStatus.NOT_FOUND, "The current customer's profile was not found.")
 
     @ExceptionHandler(BookingNotFoundException::class)
     fun bookingNotFound(): ResponseEntity<ProblemDetail> =
@@ -64,6 +80,7 @@ class CustomerOwnershipExceptionHandler {
 
     @ExceptionHandler(
         InvalidCustomerFeatureRequestException::class,
+        InvalidCustomerProfileRequestException::class,
         AdminRequestValidationException::class,
         MethodArgumentNotValidException::class,
         ConstraintViolationException::class,
@@ -82,6 +99,18 @@ class CustomerOwnershipExceptionHandler {
     )
     fun conflict(): ResponseEntity<ProblemDetail> =
         problem(HttpStatus.CONFLICT, "The requested operation cannot be completed in the current state.")
+
+    @ExceptionHandler(CustomerProfileConflictException::class)
+    fun customerProfileConflict(exception: CustomerProfileConflictException): ResponseEntity<ProblemDetail> {
+        val detail =
+            when (exception.conflict) {
+                CustomerProfileConflict.EXISTING_IDENTITY ->
+                    "A customer profile already exists for this identity."
+                CustomerProfileConflict.EMAIL_ALREADY_USED ->
+                    "A customer profile already uses this identity email. Contact support or use another account."
+            }
+        return problem(HttpStatus.CONFLICT, detail)
+    }
 
     @ExceptionHandler(Exception::class)
     fun unexpectedFailure(

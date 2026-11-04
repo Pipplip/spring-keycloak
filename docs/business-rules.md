@@ -4,6 +4,15 @@
 ## 1. Customer
 
 - Every customer is identified by Keycloak subject (sub).
+- Customers may register through Keycloak's hosted UI; new accounts receive
+  USER automatically and email verification is not required for local profile
+  creation.
+- The verified token supplies the immutable profile subject, email, and names.
+  Company name and billing address are editable in the service; Keycloak
+  attribute changes are not synchronized automatically.
+- A customer may create one local profile and may read or update only that
+  profile. Profiles and Keycloak accounts are not deleted or deactivated by
+  this feature.
 - Customers can only access their own bookings.
 - Only one customer type with one billing requirement.
 
@@ -84,7 +93,7 @@ Invoice statuses:
 - Payment is initially managed manually.
 - Allowed administrator transitions are DRAFT to SENT or VOID, and SENT to
   PAID. PAID and VOID are terminal states.
-- Invoice email notifications are deferred to FEAT-001 in the planning
+- Invoice email notifications are deferred to FEAT-002 in the planning
   backlog; creating or changing invoice status sends no email in this
   milestone.
 - PDF generation is a future enhancement.

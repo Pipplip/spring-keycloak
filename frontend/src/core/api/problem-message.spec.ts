@@ -2,12 +2,12 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { problemMessage } from './problem-message';
 
 describe('problemMessage', () => {
-  it('uses the Problem Details message for expected client errors', () => {
+  it('uses the safe Problem Details message for conflict errors', () => {
     const error = new HttpErrorResponse({
       status: 409,
       error: { status: 409, title: 'Conflict', detail: 'Inventory is no longer available.' },
     });
-    expect(problemMessage(error)).toContain('conflicts with the current state');
+    expect(problemMessage(error)).toBe('Inventory is no longer available.');
   });
 
   it('does not expose server diagnostics', () => {

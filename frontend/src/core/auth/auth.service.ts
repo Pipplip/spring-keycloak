@@ -59,6 +59,17 @@ export class AuthService {
     }
   }
 
+  async register(redirectUri = window.location.href): Promise<void> {
+    try {
+      await this.keycloak.register({ redirectUri });
+      this.initializationErrorState.set('');
+    } catch {
+      this.initializationErrorState.set(
+        'Account registration could not be started. Confirm the identity service is available and try again.',
+      );
+    }
+  }
+
   async logout(): Promise<void> {
     this.authenticatedState.set(false);
     this.rolesState.set([]);

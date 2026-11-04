@@ -1,0 +1,136 @@
+<section aria-labelledby="profile-title">
+  <h1 class="page-heading" id="profile-title">
+    {{ creating() ? 'Complete your customer profile' : 'My profile' }}
+  </h1>
+  <p class="page-intro">
+    Your name and email come from your Keycloak account. You can manage your billing address and
+    optional company name here.
+  </p>
+
+  @if (loading()) {
+    <p class="status-message" role="status">Loading your profile…</p>
+  } @else if (error() && !editing()) {
+    <p class="status-message error-message" role="alert">{{ error() }}</p>
+    <button mat-stroked-button type="button" (click)="load()">Try again</button>
+  } @else {
+    <mat-card appearance="outlined">
+      <mat-card-content>
+        @if (error()) {
+          <p class="status-message error-message" role="alert">{{ error() }}</p>
+        }
+        @if (success()) {
+          <p class="status-message" role="status">{{ success() }}</p>
+        }
+
+        @if (profile(); as currentProfile) {
+          <dl>
+            <dt>Name</dt>
+            <dd>{{ currentProfile.firstName }} {{ currentProfile.lastName }}</dd>
+            <dt>Email</dt>
+            <dd>{{ currentProfile.email }}</dd>
+          </dl>
+        }
+
+        @if (editing()) {
+          <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+            <div class="form-grid">
+              <mat-form-field>
+                <mat-label>Company name (optional)</mat-label>
+                <input
+                  matInput
+                  formControlName="companyName"
+                  maxlength="255"
+                  autocomplete="organization"
+                />
+                @if (form.controls.companyName.hasError('maxlength')) {
+                  <mat-error>Company name must be 255 characters or fewer.</mat-error>
+                }
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>Street</mat-label>
+                <input
+                  matInput
+                  formControlName="street"
+                  maxlength="255"
+                  autocomplete="street-address"
+                  required
+                />
+                @if (form.controls.street.invalid && form.controls.street.touched) {
+                  <mat-error>Enter a street of 255 characters or fewer.</mat-error>
+                }
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>House number</mat-label>
+                <input matInput formControlName="houseNumber" maxlength="50" required />
+                @if (form.controls.houseNumber.invalid && form.controls.houseNumber.touched) {
+                  <mat-error>Enter a house number of 50 characters or fewer.</mat-error>
+                }
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>Postal code</mat-label>
+                <input
+                  matInput
+                  formControlName="postalCode"
+                  maxlength="32"
+                  autocomplete="postal-code"
+                  required
+                />
+                @if (form.controls.postalCode.invalid && form.controls.postalCode.touched) {
+                  <mat-error>Enter a postal code of 32 characters or fewer.</mat-error>
+                }
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>City</mat-label>
+                <input
+                  matInput
+                  formControlName="city"
+                  maxlength="255"
+                  autocomplete="address-level2"
+                  required
+                />
+                @if (form.controls.city.invalid && form.controls.city.touched) {
+                  <mat-error>Enter a city of 255 characters or fewer.</mat-error>
+                }
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>Country code</mat-label>
+                <input
+                  matInput
+                  formControlName="countryCode"
+                  maxlength="2"
+                  autocomplete="country"
+                  required
+                />
+                @if (form.controls.countryCode.invalid && form.controls.countryCode.touched) {
+                  <mat-error>Enter a two-letter uppercase country code.</mat-error>
+                }
+              </mat-form-field>
+            </div>
+            <div class="form-actions">
+              <button mat-flat-button type="submit" [disabled]="saving()">
+                {{ saving() ? 'Saving…' : creating() ? 'Create profile' : 'Save changes' }}
+              </button>
+              @if (!creating()) {
+                <button mat-button type="button" [disabled]="saving()" (click)="cancelEditing()">
+                  Cancel
+                </button>
+              }
+            </div>
+          </form>
+        } @else if (profile()) {
+          <h2>Billing address</h2>
+          <address>
+            {{ profile()?.companyName }}<br />
+            {{ profile()?.billingAddress?.street }} {{ profile()?.billingAddress?.houseNumber
+            }}<br />
+            {{ profile()?.billingAddress?.postalCode }} {{ profile()?.billingAddress?.city }}<br />
+            {{ profile()?.billingAddress?.countryCode }}
+          </address>
+          <div class="form-actions">
+            <button mat-flat-button type="button" (click)="startEditing()">Edit profile</button>
+          </div>
+        }
+      </mat-card-content>
+    </mat-card>
+  }
+</section>

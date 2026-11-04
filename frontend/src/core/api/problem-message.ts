@@ -20,6 +20,10 @@ export function problemMessage(error: unknown): string {
     return 'The requested item could not be found.';
   }
   if (error.status === 409) {
+    const problem = error.error as ProblemDetail | null;
+    if (problem && typeof problem.detail === 'string' && problem.detail.trim()) {
+      return problem.detail;
+    }
     return 'This action conflicts with the current state. Refresh and try again.';
   }
   if (error.status >= 500) {

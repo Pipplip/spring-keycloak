@@ -76,6 +76,8 @@ private const val LOCK_AVAILABLE_CONTAINER_IDS_SQL =
 
 interface CustomerJpaRepository : JpaRepository<CustomerJpaEntity, UUID> {
     fun findByKeycloakSubject(keycloakSubject: String): CustomerJpaEntity?
+
+    fun findByEmail(email: String): CustomerJpaEntity?
 }
 
 interface ContainerTypeJpaRepository : JpaRepository<ContainerTypeJpaEntity, UUID> {
@@ -218,6 +220,10 @@ class CustomerPersistenceAdapter(
     @Transactional(readOnly = true)
     override fun findByKeycloakSubject(keycloakSubject: String): Customer? =
         repository.findByKeycloakSubject(keycloakSubject)?.toDomain()
+
+    @Transactional(readOnly = true)
+    override fun findByEmail(email: String): Customer? =
+        repository.findByEmail(email)?.toDomain()
 
     @Transactional(readOnly = true)
     override fun findPage(page: Int, size: Int): PageResult<Customer> {

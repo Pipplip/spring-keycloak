@@ -6,6 +6,7 @@
     @if (auth.isAuthenticated()) {
       @if (auth.hasRole('USER')) {
         <a mat-button routerLink="/bookings" routerLinkActive="active-link">My bookings</a>
+        <a mat-button routerLink="/profile" routerLinkActive="active-link">My profile</a>
       }
       @if (auth.hasRole('ADMIN')) {
         <a mat-button routerLink="/admin" routerLinkActive="active-link">Administration</a>
@@ -17,6 +18,7 @@
     <span class="signed-in" aria-label="Signed in">Signed in</span>
     <button mat-button type="button" (click)="auth.logout()">Sign out</button>
   } @else {
+    <button mat-button type="button" (click)="auth.register()">Register</button>
     <button mat-flat-button type="button" (click)="auth.login()">Sign in</button>
   }
 </mat-toolbar>

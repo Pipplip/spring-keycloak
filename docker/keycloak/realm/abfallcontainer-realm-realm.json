@@ -1,6 +1,11 @@
 {
   "realm": "abfallcontainer-realm",
   "enabled": true,
+  "registrationAllowed": true,
+  "verifyEmail": false,
+  "defaultRoles": [
+    "USER"
+  ],
   "roles": {
     "realm": [
       {
