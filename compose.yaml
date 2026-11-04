@@ -52,6 +52,19 @@ services:
       retries: 12
       start_period: 30s
 
+  keycloak-realm-sync:
+    image: quay.io/keycloak/keycloak:26.3.1
+    entrypoint: ["/bin/bash", "/opt/keycloak/bootstrap/sync-realm-registration.sh"]
+    environment:
+      KEYCLOAK_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD in .env}
+    volumes:
+      - ./docker/keycloak/bootstrap:/opt/keycloak/bootstrap:ro
+      - ./docker/keycloak/realm:/opt/keycloak/realm:ro
+    depends_on:
+      keycloak:
+        condition: service_healthy
+
   keycloak-admin-init:
     image: quay.io/keycloak/keycloak:26.3.1
     profiles: ["keycloak-bootstrap"]
@@ -66,6 +79,8 @@ services:
     depends_on:
       keycloak:
         condition: service_healthy
+      keycloak-realm-sync:
+        condition: service_completed_successfully
 
   backend:
     image: eclipse-temurin:25-jdk-alpine

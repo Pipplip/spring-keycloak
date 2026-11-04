@@ -37,6 +37,13 @@ services:
       retries: 12
       start_period: 60s
 
+  keycloak-realm-sync:
+    environment:
+      KEYCLOAK_ADMIN_PASSWORD: ""
+      KEYCLOAK_ADMIN_PASSWORD_FILE: /run/secrets/keycloak_admin_password
+    secrets:
+      - keycloak_admin_password
+
   backend-deployment:
     profiles: ["deployment"]
     image: ${BACKEND_IMAGE:-abfallcontainer/backend:local}
@@ -61,6 +68,8 @@ services:
         condition: service_healthy
       keycloak:
         condition: service_healthy
+      keycloak-realm-sync:
+        condition: service_completed_successfully
 
   frontend-deployment:
     profiles: ["deployment"]

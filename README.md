@@ -93,7 +93,10 @@ der Container werden JDK und Node.js auf dem Host nicht benötigt.
    - Keycloak: <http://localhost:8081>
 
    Keycloak importiert beim Start den Realm `abfallcontainer-realm` mit den
-   Clients und Rollen `USER` und `ADMIN`. Der lokale Anwendungsadministrator
+   Clients und Rollen `USER` und `ADMIN`. Anschließend synchronisiert ein
+   einmaliger Compose-Schritt die Einstellung `registrationAllowed` aus der
+   Realm-Datei auch in bereits vorhandene Keycloak-Daten, ohne den Realm oder
+   seine Benutzer zu überschreiben. Der lokale Anwendungsadministrator
    wird beim Compose-Start automatisch angelegt. Benutzername und Passwort
    stehen in `.env` unter `ABFALLCONTAINER_ADMIN_USERNAME` und
    `ABFALLCONTAINER_ADMIN_PASSWORD`; sie sind unabhängig von den Zugangsdaten
